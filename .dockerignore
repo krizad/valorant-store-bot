@@ -1,0 +1,35 @@
+# Local host dependencies (prevents platform mismatch for native modules like @napi-rs/canvas)
+node_modules/
+
+# Runtime data & user accounts (persisted via Docker volumes instead)
+data/
+
+# Deployment & build artifacts
+deploy-app/
+dist/
+*.zip
+*.tar.gz
+
+# Git repository metadata
+.git/
+.github/
+
+# Local sensitive environment & configuration files
+.env
+.env.*
+config.json
+
+# Operating system & editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
