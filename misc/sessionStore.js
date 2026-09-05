@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 /**
  * In-memory one-time session store for Discord Web Portal authentication
@@ -13,13 +13,14 @@ const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes
  * @param {string} userAvatar - Optional Discord avatar URL
  * @returns {object} Session object including one-time token
  */
-export function createLoginSession(userId, userTag = "", userAvatar = "") {
+export function createLoginSession(userId, userTag = "", userAvatar = "", lang = "en") {
     const token = crypto.randomBytes(16).toString("hex");
     const session = {
         token,
         userId,
         userTag,
         userAvatar,
+        lang,
         status: "pending", // 'pending' | 'success' | 'failed'
         error: null,
         username: null,

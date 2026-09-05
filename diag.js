@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -23,6 +24,7 @@ const checks = [
     ['valorant/shop.js', 'Valorant storefront fetcher'],
     ['services/canvasBanner.js', 'Canvas 2x2 storefront generator'],
     ['misc/keepAliveServer.js', 'Express HTTP keep-alive server'],
+    ['views/login.html', 'Web Portal login template'],
     ['languages/en-GB.json', 'i18n language catalog'],
     ['assets/vp.png', 'VP currency icon asset'],
     ['package.json', 'Package manifest']
@@ -72,22 +74,48 @@ if (!fs.existsSync(dataDir)) {
     }
 }
 
-// 3. Environment Variables Check
+// 3. Environment & Configuration Check
 log('----------------------------------------------------------------');
-log('Environment Variables:');
+log('Environment & Configuration:');
+let configJson = null;
+if (fs.existsSync(path.resolve('config.json'))) {
+    try {
+        configJson = JSON.parse(fs.readFileSync(path.resolve('config.json'), 'utf8'));
+    } catch (_) {}
+}
+
 for (const k of ['DISCORD_TOKEN', 'CLIENT_ID', 'PORT', 'NODE_ENV', 'PUBLIC_URL', 'HDEV_TOKEN', 'DEFAULT_REGION']) {
-    const v = process.env[k];
+    let v = process.env[k];
     const isSecret = ['DISCORD_TOKEN', 'HDEV_TOKEN'].includes(k);
+    let source = 'env';
+
+    if (!v && configJson) {
+        if (k === 'DISCORD_TOKEN' && configJson.token && configJson.token !== 'token goes here') {
+            v = configJson.token;
+            source = 'config.json';
+        } else if (k === 'PUBLIC_URL' && configJson.publicUrl) {
+            v = configJson.publicUrl;
+            source = 'config.json';
+        } else if (k === 'DEFAULT_REGION' && configJson.region) {
+            v = configJson.region;
+            source = 'config.json';
+        }
+    }
+
     let display = 'MISSING';
     if (v) {
-        display = isSecret ? `SET (${v.slice(0, 4)}...${v.slice(-4)})` : `SET (${v})`;
+        const valStr = isSecret ? `${v.slice(0, 4)}...${v.slice(-4)}` : `${v}`;
+        display = `SET via ${source} (${valStr})`;
+    } else if (k === 'PUBLIC_URL') {
+        display = 'NOT SET (will fallback to auto-detect or localhost:3000)';
     }
+
     const critical = k === 'DISCORD_TOKEN';
-    if (critical && !v && !fs.existsSync(path.resolve('config.json'))) {
+    if (critical && !v) {
         allOk = false;
-        log(`[FAIL] env ${k.padEnd(20)} : ${display} (Required if config.json not present)`);
+        log(`[FAIL] ${k.padEnd(24)} : MISSING (Required in .env or config.json)`);
     } else {
-        log(`[INFO] env ${k.padEnd(20)} : ${display}`);
+        log(`[INFO] ${k.padEnd(24)} : ${display}`);
     }
 }
 

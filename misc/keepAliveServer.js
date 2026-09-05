@@ -4,6 +4,7 @@ import { renderWebPortalHtml, renderExpiredOrInvalidHtml } from "./webPortalHtml
 import { queueCookiesLogin, queueRedirectUrlLogin } from "../valorant/authQueue.js";
 import { waitForAuthQueueResponse } from "../discord/authManager.js";
 import { getUser } from "../valorant/auth.js";
+import { resolvePublicUrl } from "./config.js";
 
 /**
  * Creates and starts a lightweight HTTP server for health monitoring,
@@ -34,32 +35,45 @@ export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStat
     // Web Authentication Portal Page
     app.get(["/auth", "/auth/login"], (req, res) => {
         const token = req.query.token;
+        const lang = req.query.lang || "en";
         const session = getLoginSession(token);
 
         if (!session) {
-            return res.status(400).send(renderExpiredOrInvalidHtml());
+            return res.status(400).send(renderExpiredOrInvalidHtml(null, lang));
         }
 
-        const publicUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
+        const publicUrl = resolvePublicUrl(req);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.status(200).send(renderWebPortalHtml({ session, publicUrl }));
+        res.status(200).send(renderWebPortalHtml({ session, publicUrl, lang }));
     });
 
     // Web Portal Submission Endpoint
     app.post("/api/auth/submit", async (req, res) => {
-        const { token, cookies: rawCookies } = req.body || {};
+        const { token, cookies: rawCookies, lang = "en" } = req.body || {};
+        const isTh = lang === "th";
+
         if (!token) {
-            return res.status(400).json({ success: false, error: "Missing session token" });
+            return res.status(400).json({ success: false, error: isTh ? "ไม่พบเซสชันโทเคน" : "Missing session token" });
         }
 
         const session = getLoginSession(token);
         if (!session) {
-            return res.status(400).json({ success: false, error: "เซสชันหมดอายุหรือไม่ถูกต้อง กรุณากด /login ใน Discord อีกครั้ง" });
+            return res.status(400).json({
+                success: false,
+                error: isTh
+                    ? "เซสชันหมดอายุหรือไม่ถูกต้อง กรุณากด /login ใน Discord อีกครั้ง"
+                    : "Session expired or invalid. Please run /login in Discord again."
+            });
         }
 
         let input = (rawCookies || "").trim();
         if (!input) {
-            return res.status(400).json({ success: false, error: "กรุณาระบุ URL ที่ล็อกอินสำเร็จ หรือ ssid cookie" });
+            return res.status(400).json({
+                success: false,
+                error: isTh
+                    ? "กรุณาระบุ URL ที่ล็อกอินสำเร็จ หรือ ssid cookie"
+                    : "Please provide a valid login URL or ssid cookie."
+            });
         }
 
         try {
@@ -90,12 +104,17 @@ export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStat
                 });
                 return res.status(400).json({
                     success: false,
-                    error: "เข้าสู่ระบบไม่สำเร็จ ข้อมูลไม่ถูกต้องหรือโทเคนหมดอายุแล้ว กรุณาลองใหม่อีกครั้ง"
+                    error: isTh
+                        ? "เข้าสู่ระบบไม่สำเร็จ ข้อมูลไม่ถูกต้องหรือโทเคนหมดอายุแล้ว กรุณาลองใหม่อีกครั้ง"
+                        : "Login failed. Invalid authentication data or token expired. Please try again."
                 });
             }
         } catch (e) {
             console.error("[WebPortal] Error during web auth submission:", e);
-            return res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: " + e.message });
+            return res.status(500).json({
+                success: false,
+                error: isTh ? "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: " + e.message : "Internal server error: " + e.message
+            });
         }
     });
 

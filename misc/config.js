@@ -31,6 +31,10 @@ export const loadConfig = (filename="config.json") => {
         loadedConfig.HDevToken = process.env.HDEV_TOKEN;
     }
 
+    if (process.env.PUBLIC_URL && (!loadedConfig.publicUrl || loadedConfig.publicUrl === "")) {
+        loadedConfig.publicUrl = process.env.PUBLIC_URL;
+    }
+
     if(!loadedConfig.token || loadedConfig.token === "token goes here" || loadedConfig.token === "dummy_token")
         return console.error("You forgot to put your bot token in config.json or DISCORD_TOKEN in .env!");
 
@@ -94,6 +98,7 @@ export const loadConfig = (filename="config.json") => {
     applyConfig(loadedConfig, "logToChannel", "");
     applyConfig(loadedConfig, "logFrequency", "*/10 * * * * *");
     applyConfig(loadedConfig, "logUrls", false);
+    applyConfig(loadedConfig, "publicUrl", process.env.PUBLIC_URL || "");
 
     saveConfig(filename, config);
 
@@ -107,4 +112,40 @@ export const saveConfig = (filename="config.json", configToSave) => {
 const applyConfig = (loadedConfig, name, defaultValue) => {
     if(loadedConfig[name] === undefined) config[name] = defaultValue;
     else config[name] = loadedConfig[name];
+}
+
+/**
+ * Resolves, cleans, and validates the public URL for the Web Authentication Portal.
+ * Guaranteed to return a valid URL string starting with http:// or https://.
+ * @param {import("express").Request|null} req - Optional Express request for auto-detecting host
+ * @returns {string} Fully qualified valid URL
+ */
+export function resolvePublicUrl(req = null) {
+    let raw = (process.env.PUBLIC_URL || config.publicUrl || "").trim();
+    if (raw) {
+        if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
+            raw = `https://${raw}`;
+        }
+        raw = raw.replace(/\/+$/, "");
+        try {
+            const parsed = new URL(raw);
+            return parsed.origin + (parsed.pathname !== "/" ? parsed.pathname : "");
+        } catch (e) {
+            console.warn(`[Config] Invalid PUBLIC_URL provided: "${raw}". Falling back.`);
+        }
+    }
+
+    if (req && typeof req.get === "function") {
+        const host = req.get("host");
+        if (host) {
+            const proto = req.get("x-forwarded-proto") || req.protocol || "http";
+            return `${proto}://${host}`;
+        }
+    }
+
+    const portNum = Number.parseInt(process.env.PORT, 10);
+    if (!Number.isNaN(portNum) && portNum > 0 && portNum < 65536) {
+        return `http://localhost:${portNum}`;
+    }
+    return "http://localhost:3000";
 }

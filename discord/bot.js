@@ -71,7 +71,7 @@ import {
     fetchRiotVersionData,
 } from "../misc/util.js";
 import { WeaponType, WeaponTypeUuid } from "../misc/weaponTypes.js";
-import config, { loadConfig, saveConfig } from "../misc/config.js";
+import config, { loadConfig, saveConfig, resolvePublicUrl } from "../misc/config.js";
 import { localError, localLog, sendConsoleOutput } from "../misc/logger.js";
 import { DEFAULT_VALORANT_LANG, discToValLang, l, s } from "../misc/languages.js";
 import {
@@ -1167,9 +1167,11 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     // Generate one-time session for Web Portal login
-                    const session = createLoginSession(interaction.user.id, interaction.user.tag);
-                    const publicUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
-                    const portalUrl = `${publicUrl}/auth/login?token=${session.token}`;
+                    const userLocale = getSetting(interaction.user.id, "locale") || interaction.locale || "en";
+                    const portalLang = userLocale.toLowerCase().startsWith("th") ? "th" : "en";
+                    const session = createLoginSession(interaction.user.id, interaction.user.tag, "", portalLang);
+                    const publicUrl = resolvePublicUrl();
+                    const portalUrl = `${publicUrl}/auth/login?token=${session.token}${portalLang !== "en" ? `&lang=${portalLang}` : ""}`;
 
                     const webLoginButton = new ButtonBuilder()
                         .setLabel(s(interaction).info.LOGIN_WEB_BUTTON)

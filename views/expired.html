@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="{{INITIAL_LANG}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PAGE_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #080c10;
+            --bg-card: rgba(18, 26, 36, 0.9);
+            --val-red: #ff4655;
+            --val-white: #ece8e1;
+            --val-gray: #8b99a8;
+            --font-tactical: 'Rajdhani', -apple-system, sans-serif;
+            --font-body: 'Inter', -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: 
+                radial-gradient(circle at 50% 30%, rgba(255, 70, 85, 0.12) 0%, transparent 60%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 32px 32px, 32px 32px;
+            color: var(--val-white);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            max-width: 460px;
+            width: 100%;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 70, 85, 0.25);
+            border-radius: 12px;
+            padding: 36px 28px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 70, 85, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--val-red);
+        }
+
+        .icon-box {
+            width: 68px;
+            height: 68px;
+            background: rgba(255, 70, 85, 0.12);
+            border: 2px solid var(--val-red);
+            color: var(--val-red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 18px;
+            box-shadow: 0 0 24px rgba(255, 70, 85, 0.25);
+        }
+
+        .sub-tag {
+            font-family: var(--font-tactical);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--val-red);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        h2 {
+            font-family: var(--font-tactical);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #fff;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 14px;
+            color: var(--val-gray);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-family: var(--font-tactical);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon-box">!</div>
+        <div class="sub-tag">{{EXPIRED_SUBTITLE}}</div>
+        <h2>{{DISPLAY_TITLE}}</h2>
+        <p>{{EXPIRED_DESC}}</p>
+        <button type="button" class="btn-action" onclick="window.close()">{{EXPIRED_BTN}}</button>
+    </div>
+</body>
+</html>
