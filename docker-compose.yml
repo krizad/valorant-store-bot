@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  bot:
+    # Build directly from current local source code (No pre-built external image needed)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: valorant-store-bot:latest
+    container_name: valorant_store_bot
+    restart: unless-stopped
+    ports:
+      # Maps host port to container HTTP keep-alive & Web Login Portal port
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    volumes:
+      # Persist user accounts, auth sessions, and storefront cache across container restarts
+      - ./data:/usr/app/data

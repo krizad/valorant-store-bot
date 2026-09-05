@@ -1,0 +1,29 @@
+version: '3.8'
+
+# Development Docker Compose configuration (Mounts local code directly for live changes)
+# Usage: docker compose -f docker-compose.dev.yml up -d
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: valorant-store-bot:dev
+    container_name: valorant_store_bot_dev
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    volumes:
+      # Live-mount current local code into container (changes reflect on restart/reload)
+      - ./discord:/usr/app/discord
+      - ./valorant:/usr/app/valorant
+      - ./services:/usr/app/services
+      - ./misc:/usr/app/misc
+      - ./languages:/usr/app/languages
+      - ./assets:/usr/app/assets
+      - ./scripts:/usr/app/scripts
+      - ./SkinPeek.js:/usr/app/SkinPeek.js
+      # Persist data runtime
+      - ./data:/usr/app/data
