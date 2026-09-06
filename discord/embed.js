@@ -663,9 +663,10 @@ const titleEmbed = async (uuid, price, locale, emojiString) => {
 }
 
 export const skinCollectionSingleEmbed = async (interaction, id, user, {loadout, favorites}) => {
-    const someoneElseUsedCommand = interaction.message ?
-        interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
-        interaction.user.id !== user.id;
+    const invokerId = interaction.message ?
+        (interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id) :
+        null;
+    const someoneElseUsedCommand = invokerId ? invokerId !== user.id : interaction.user.id !== user.id;
 
     let totalValue = 0;
     const skinsUuid = [];
@@ -766,9 +767,10 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, {loadout,
 }
 
 export const skinCollectionPageEmbed = async (interaction, id, user, {loadout, favorites}, pageIndex=0) => {
-    const someoneElseUsedCommand = interaction.message ?
-        interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
-        interaction.user.id !== user.id;
+    const invokerId = interaction.message ?
+        (interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id) :
+        null;
+    const someoneElseUsedCommand = invokerId ? invokerId !== user.id : interaction.user.id !== user.id;
 
     let totalValue = 0;
     const emoji = await VPEmoji(interaction);
@@ -842,9 +844,10 @@ const collectionSwitchEmbedButton = (interaction, switchToPage, id) => {
 }
 
 export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeUuid, skins, pageIndex=0) => {
-    const someoneElseUsedCommand = interaction.message ?
-        interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
-        interaction.user.id !== user.id;
+    const invokerId = interaction.message ?
+        (interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id) :
+        null;
+    const someoneElseUsedCommand = invokerId ? invokerId !== user.id : interaction.user.id !== user.id;
 
     const emoji = await VPEmoji(interaction);
 
@@ -1283,11 +1286,11 @@ export const alertsPageEmbed = async (interaction, alerts, pageIndex, emojiStrin
 
 export const alertTestResponse = async (interaction, success) => {
     if(success) {
-        await interaction.followUp({
+        await interaction.editReply({
             embeds: [secondaryEmbed(s(interaction).info.ALERT_TEST_SUCCESSFUL)]
         });
     } else {
-        await interaction.followUp({
+        await interaction.editReply({
             embeds: [basicEmbed(s(interaction).error.ALERT_NO_PERMS)]
         });
     }
@@ -1503,8 +1506,8 @@ export const helpEmbed = (interaction) => {
                 {
                     name: isThai ? "👤 บัญชีและการเข้าสู่ระบบ (Account & Wallet)" : "👤 Account & Wallet",
                     value: isThai
-                        ? "` /login [ssid] ` — เข้าสู่ระบบผ่าน Web Portal หรือกรอก SSID Cookie (ข้าม Captcha)\n" +
-                          "` /cookies <header> ` — เข้าสู่ระบบด้วย Cookie Header จาก Riot Games\n" +
+                        ? "` /login [ssid] ` — เข้าสู่ระบบ (ใส่ SSID เพื่อเปิดแจ้งเตือนร้านค้า 07:00 น. ถาวร)\n" +
+                          "` /cookies <header> ` — เข้าสู่ระบบด้วย Cookie Header หรือคุกกี้ที่ Export ออกมา\n" +
                           "` /balance ` — เช็คยอดคงเหลือ VP, Radianite และ Kingdom Credits\n" +
                           "` /battlepass [level] ` — คำนวณความคืบหน้าและเวลาที่ต้องใช้ในแบทเทิลพาส\n" +
                           "` /profile [user] ` — ตรวจสอบโปรไฟล์ แรงค์ และ MMR ปัจจุบัน\n" +
@@ -1513,8 +1516,8 @@ export const helpEmbed = (interaction) => {
                           "` /update ` — อัปเดตชื่อผู้ใช้และภูมิภาคบัญชีในบอท\n" +
                           "` /forget [account] ` — ลบบัญชีและข้อมูลออกจากบอทอย่างถาวร\n" +
                           "` /logout [account] ` — ออกจากระบบบัญชี"
-                        : "` /login [ssid] ` — Log in securely via Web Portal or SSID cookie (bypasses Captcha)\n" +
-                          "` /cookies <header> ` — Log in using full Riot cookie header\n" +
+                        : "` /login [ssid] ` — Log in securely (use SSID cookie for permanent 07:00 daily alerts)\n" +
+                          "` /cookies <header> ` — Log in using full Riot cookie header or exported cookies\n" +
                           "` /balance ` — Check VP, Radianite, and Kingdom Credits\n" +
                           "` /battlepass [level] ` — Calculate battlepass progress and XP requirements\n" +
                           "` /profile [user] ` — Check Valorant rank and MMR profile\n" +

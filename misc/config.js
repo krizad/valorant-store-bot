@@ -35,6 +35,14 @@ export const loadConfig = (filename="config.json") => {
         loadedConfig.publicUrl = process.env.PUBLIC_URL;
     }
 
+    if (process.env.LOG_TO_FILE !== undefined) {
+        loadedConfig.logToFile = process.env.LOG_TO_FILE !== "false";
+    }
+
+    if (process.env.LOG_DIR && (!loadedConfig.logDir || loadedConfig.logDir === "")) {
+        loadedConfig.logDir = process.env.LOG_DIR;
+    }
+
     if(!loadedConfig.token || loadedConfig.token === "token goes here" || loadedConfig.token === "dummy_token")
         return console.error("You forgot to put your bot token in config.json or DISCORD_TOKEN in .env!");
 
@@ -98,6 +106,8 @@ export const loadConfig = (filename="config.json") => {
     applyConfig(loadedConfig, "logToChannel", "");
     applyConfig(loadedConfig, "logFrequency", "*/10 * * * * *");
     applyConfig(loadedConfig, "logUrls", false);
+    applyConfig(loadedConfig, "logToFile", true);
+    applyConfig(loadedConfig, "logDir", "data/logs");
     applyConfig(loadedConfig, "publicUrl", process.env.PUBLIC_URL || "");
 
     saveConfig(filename, config);

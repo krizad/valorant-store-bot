@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VALORANT Store - Session Helper</title>
+    <style>
+        :root {
+            --bg-dark: #0f1923;
+            --bg-card: #1b2733;
+            --bg-card-hover: #223140;
+            --val-red: #ff4655;
+            --val-red-hover: #ff5e6c;
+            --val-text: #ece8e1;
+            --val-gray: #9ba4ac;
+            --val-green: #00f59b;
+            --border-color: rgba(255, 70, 85, 0.3);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 360px;
+            background: var(--bg-dark);
+            color: var(--val-text);
+            font-family: var(--font-family);
+            padding: 16px;
+            font-size: 13px;
+            user-select: none;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--val-red);
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        .title-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 22px;
+            height: 22px;
+        }
+
+        .title-text {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .lang-switch {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--val-text);
+            font-size: 11px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .lang-switch:hover {
+            border-color: var(--val-red);
+        }
+
+        /* Status Card */
+        .card {
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--val-gray);
+            transition: all 0.2s ease;
+        }
+
+        .card.active {
+            border-left-color: var(--val-green);
+            box-shadow: 0 0 12px rgba(0, 245, 155, 0.1);
+        }
+
+        .card.error {
+            border-left-color: var(--val-red);
+            box-shadow: 0 0 12px rgba(255, 70, 85, 0.1);
+        }
+
+        .status-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .status-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .badge-green {
+            background: rgba(0, 245, 155, 0.15);
+            color: var(--val-green);
+        }
+
+        .badge-red {
+            background: rgba(255, 70, 85, 0.15);
+            color: var(--val-red);
+        }
+
+        .status-desc {
+            color: var(--val-gray);
+            font-size: 11px;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+
+        /* Action Buttons */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s ease-in-out;
+            margin-bottom: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--val-red);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--val-red-hover);
+            box-shadow: 0 0 10px rgba(255, 70, 85, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: #fff;
+        }
+
+        .btn-success {
+            background: var(--val-green) !important;
+            color: #0f1923 !important;
+        }
+
+        /* Form Inputs */
+        .sync-section {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 8px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 11px;
+            color: var(--val-gray);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .input-field {
+            width: 100%;
+            background: #141f29;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            padding: 7px 10px;
+            color: #fff;
+            font-size: 11px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--val-red);
+        }
+
+        /* Alert / Message */
+        .msg-box {
+            display: none;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 8px;
+            text-align: center;
+            line-height: 1.3;
+        }
+        .msg-success {
+            background: rgba(0, 245, 155, 0.15);
+            color: var(--val-green);
+            border: 1px solid rgba(0, 245, 155, 0.3);
+        }
+        .msg-error {
+            background: rgba(255, 70, 85, 0.15);
+            color: var(--val-red);
+            border: 1px solid rgba(255, 70, 85, 0.3);
+        }
+
+        .footer {
+            margin-top: 12px;
+            font-size: 10px;
+            color: var(--val-gray);
+            text-align: center;
+        }
+        .footer a {
+            color: var(--val-red);
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-area">
+            <img src="icons/icon48.png" class="logo-icon" alt="VALORANT">
+            <span class="title-text">Store Helper</span>
+        </div>
+        <select id="lang-select" class="lang-switch">
+            <option value="th">🇹🇭 ไทย</option>
+            <option value="en">🇬🇧 English</option>
+        </select>
+    </div>
+
+    <!-- Status Card -->
+    <div id="status-card" class="card">
+        <div class="status-title">
+            <span id="txt-riot-status">สถานะ Riot Games</span>
+            <span id="status-badge" class="status-badge badge-green">กำลังตรวจสอบ</span>
+        </div>
+        <div id="status-desc" class="status-desc">กำลังตรวจหาคุกกี้เซสชัน SSID...</div>
+    </div>
+
+    <!-- Action 1: 1-Click Copy -->
+    <button type="button" id="btn-copy-ssid" class="btn btn-primary">
+        <span id="txt-btn-copy">📋 คัดลอก SSID (คลิกเดียว)</span>
+    </button>
+
+    <!-- Action: Open Riot if not logged in -->
+    <button type="button" id="btn-open-riot" class="btn btn-secondary" style="display: none;">
+        <span id="txt-btn-open-riot">🔑 เปิดหน้าล็อกอิน Riot Games</span>
+    </button>
+
+    <!-- Action 2: 1-Click Sync to Bot -->
+    <div class="sync-section">
+        <div class="input-group">
+            <label class="input-label" id="txt-token-label">โทเคนหรือลิงก์จากคำสั่ง /login Discord:</label>
+            <input type="text" id="input-token" class="input-field" placeholder="วางลิงก์ Web Portal หรือ Session Token">
+        </div>
+        <button type="button" id="btn-sync-bot" class="btn btn-secondary">
+            <span id="txt-btn-sync">🚀 ซิงค์เข้า Discord Bot ทันที</span>
+        </button>
+        <div id="sync-msg" class="msg-box"></div>
+    </div>
+
+    <div class="footer">
+        <span id="txt-footer-hint">ใช้สำหรับบอท Valorant Store Check ใน Discord</span>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

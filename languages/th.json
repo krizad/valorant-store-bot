@@ -147,11 +147,11 @@
       "SHARDS_LOADING": "บอทยังคงเริ่มต้นขึ้น! โปรดรอสักครู่แล้วลองอีกครั้ง (กำลังโหลด...)",
       "NO_MORE_ACCESSORIES": "คุณมีของตกเเต่งทั้งหมดเเล้ว! :sunglasses:",
       "PROFILE_PEAK_RANK": "แรงค์สูงสุด",
-      "LOGIN_WEB_BUTTON": "🌐 เข้าสู่ระบบผ่าน Web Portal",
-      "LOGIN_MODAL_BUTTON": "📝 กรอก SSID Cookie โดยตรง",
+      "LOGIN_WEB_BUTTON": "🌐 ล็อกอินผ่าน Web Portal",
+      "LOGIN_MODAL_BUTTON": "📝 ป้อน SSID Cookie โดยตรง",
       "LOGIN_PORTAL_TITLE": "เข้าสู่ระบบ Riot Games (VALORANT)",
-      "LOGIN_PORTAL_DESC": "เลือกช่องทางการเข้าสู่ระบบ:\n\n**1. ผ่านหน้าเว็บ (แนะนำ สะดวกสุด):**\nกดปุ่ม **[🌐 เข้าสู่ระบบผ่าน Web Portal]({url})** เพื่อเปิดหน้าล็อกอินในเบราว์เซอร์ Chrome / Mobile\n\n**2. กรอก SSID Cookie ในนี้:**\nกดปุ่ม **[📝 กรอก SSID Cookie โดยตรง]** เพื่อเปิดหน้าต่างกรอกข้อความใน Discord",
-      "LOGIN_PORTAL_FOOTER": "ลิงก์เข้าสู่ระบบมีอายุ 10 นาที (ใช้ได้ครั้งเดียว)"
+      "LOGIN_PORTAL_DESC": "เลือกรูปแบบการเข้าสู่ระบบตามที่คุณสะดวก:\n\n**1. 🌐 ล็อกอินผ่าน Web Portal (รวดเร็ว):**\nกดปุ่ม **[เข้าสู่ระบบผ่าน Web Portal]({url})** เพื่อล็อกอินผ่านเบราว์เซอร์\n*↳ เหมาะสำหรับเข้ามากดดูร้านค้าทันที (โทเคนมีอายุ 1 ชั่วโมง)*\n\n**2. 📝 ป้อน SSID Cookie (แนะนำสำหรับแจ้งเตือนถาวร ⭐):**\nกดปุ่ม **[ป้อน SSID Cookie โดยตรง]** แล้ววางค่า `ssid`\n*↳ เซสชันอยู่ได้นานหลายเดือน ไม่หมดอายุ และบอทจะส่งแจ้งเตือนร้านค้าประจำวันตอน 07:00 น. ให้อัตโนมัติทุกวัน!*\n\n💡 **วิธีเอา SSID ง่ายๆ ใน 1 นาที:**\n1. เปิดเบราว์เซอร์ที่ล็อกอิน Riot ไว้ แล้วเข้าไปที่ `https://auth.riotgames.com/userinfo`\n2. คลิกไอคอนส่วนขยาย **Cookie-Editor** (หรือ **Extension ของบอท**)\n3. คัดลอกค่าในช่อง `ssid` แล้วกดปุ่มด้านล่างเพื่อวางได้เลยครับ!",
+      "LOGIN_PORTAL_FOOTER": "ลิงก์เข้าสู่ระบบมีอายุ 10 นาที • ข้อมูลของคุณถูกซ่อนเป็นความลับเฉพาะคุณ"
     },
     "battlepass": {
       "CALCULATIONS_TITLE": "\uD83D\uDCC8 ระบบ คำนวนแบทเทิลพาส",
@@ -204,9 +204,9 @@
       "PAGE_TITLE": "เลือกหน้า",
       "PAGE_INPUT_PLACEHOLDER": "กรุณากรอกตัวเลขเท่านั้น",
       "PAGE_INPUT_LABEL": "ไปที่หน้า (1-{max})",
-      "LOGIN_SSID_TITLE": "เข้าสู่ระบบ Valorant (SSID Cookie)",
+      "LOGIN_SSID_TITLE": "เข้าสู่ระบบด้วย SSID Cookie (แจ้งเตือนถาวร)",
       "LOGIN_SSID_LABEL": "Riot Session Cookie (ssid)",
-      "LOGIN_SSID_PLACEHOLDER": "วางค่า ssid cookie จาก auth.riotgames.com ที่นี่"
+      "LOGIN_SSID_PLACEHOLDER": "วางค่า ssid จาก auth.riotgames.com/userinfo หรือจากส่วนขยายที่นี่..."
     },
     "match": {
       "COMPETITIVE": "จัดอันดับ",

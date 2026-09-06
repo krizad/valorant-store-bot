@@ -150,8 +150,8 @@
     "LOGIN_WEB_BUTTON": "🌐 Login via Web Portal",
     "LOGIN_MODAL_BUTTON": "📝 Enter SSID Directly",
     "LOGIN_PORTAL_TITLE": "VALORANT Authentication",
-    "LOGIN_PORTAL_DESC": "Choose your preferred login method:\n\n**1. Via Web Portal (Recommended & easiest):**\nClick **[🌐 Login via Web Portal]({url})** to open the login page in your browser (Chrome/Mobile).\n\n**2. Enter SSID Cookie Directly:**\nClick **[📝 Enter SSID Directly]** to open the input modal in Discord.",
-    "LOGIN_PORTAL_FOOTER": "Login link expires in 10 minutes (single-use)"
+    "LOGIN_PORTAL_DESC": "Choose your preferred login method:\n\n**1. 🌐 Web Portal (Quick & Easy):**\nClick **[Login via Web Portal]({url})** to sign in through your browser.\n*↳ Best for immediate store inspection (Token expires after 1 hour).*\n\n**2. 📝 Enter SSID Directly (Recommended for permanent alerts ⭐):**\nClick **[Enter SSID Directly]** and paste your `ssid` cookie.\n*↳ Session lasts for months, auto-refreshes, and enables automatic daily store notifications at 07:00 AM!*\n\n💡 **Quick 1-Minute SSID Guide:**\n1. Open your browser where Riot is logged in and go to `https://auth.riotgames.com/userinfo`\n2. Click the **Cookie-Editor** extension (or our **Bot Extension**)\n3. Copy the value of `ssid` and click the button below to paste!",
+    "LOGIN_PORTAL_FOOTER": "Login link expires in 10 minutes • Kept strictly private to you"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "\uD83D\uDCC8 Battlepass Calculation",
@@ -204,9 +204,9 @@
     "PAGE_TITLE": "Page Navigator",
     "PAGE_INPUT_PLACEHOLDER": "Please only input a number.",
     "PAGE_INPUT_LABEL": "Go to page (1-{max})",
-    "LOGIN_SSID_TITLE": "Valorant Login (SSID Cookie)",
+    "LOGIN_SSID_TITLE": "Sign In with SSID Cookie (Permanent)",
     "LOGIN_SSID_LABEL": "Riot Session Cookie (ssid)",
-    "LOGIN_SSID_PLACEHOLDER": "Paste your 'ssid' cookie value from auth.riotgames.com"
+    "LOGIN_SSID_PLACEHOLDER": "Paste your 'ssid' cookie from auth.riotgames.com/userinfo or Extension"
   },
   "match": {
     "COMPETITIVE": "Competitive",

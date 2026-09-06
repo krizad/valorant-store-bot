@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import express from "express";
 import { getLoginSession, updateLoginSession } from "./sessionStore.js";
 import { renderWebPortalHtml, renderExpiredOrInvalidHtml } from "./webPortalHtml.js";
@@ -14,7 +16,29 @@ import { resolvePublicUrl } from "./config.js";
 export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStatus = null) {
     const app = express();
 
+    // CORS middleware for Chrome Extension & cross-origin API requests
+    app.use((req, res, next) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        if (req.method === "OPTIONS") {
+            return res.sendStatus(204);
+        }
+        next();
+    });
+
     app.use(express.json());
+
+    // Extension download endpoint
+    app.get(["/download/extension", "/download/extension.zip", "/download/valorant-store-helper.zip"], (req, res) => {
+        const zipPath = path.join(process.cwd(), "assets", "valorant-store-helper.zip");
+        if (!fs.existsSync(zipPath)) {
+            return res.status(404).send("Extension package not found. Run npm run package:extension to generate it.");
+        }
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader("Content-Disposition", 'attachment; filename="valorant-store-helper.zip"');
+        res.sendFile(zipPath);
+    });
 
     // Health-check endpoint for UptimeRobot / cron pings
     app.get("/health", (req, res) => {

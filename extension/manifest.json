@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "VALORANT Store - Session Helper",
+  "version": "1.0.0",
+  "description": "1-Click Riot Games SSID session extraction and auto-sync for Valorant Store Discord Bot.",
+  "permissions": [
+    "cookies",
+    "storage",
+    "activeTab",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "*://*.riotgames.com/*",
+    "*://*.krizad.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "VALORANT Store - Session Helper",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/auth*",
+        "*://*/auth/login*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

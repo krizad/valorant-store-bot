@@ -14,7 +14,8 @@ import {
     TextInputStyle,
     EmbedBuilder,
     Events,
-    MessageFlags
+    MessageFlags,
+    AttachmentBuilder
 } from "discord.js";
 import { createLoginSession } from "../misc/sessionStore.js";
 import cron from "node-cron";
@@ -96,6 +97,7 @@ import { getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import { spawn } from "child_process";
 import * as fs from "fs";
+import path from "node:path";
 
 export const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildEmojisAndStickers],
@@ -704,6 +706,29 @@ client.on("messageCreate", async (message) => {
                 await sendShardMessage({ type: "checkAlerts" });
                 await message.reply("Told shard 0 to start checking alerts!");
             }
+        } else if (content.startsWith("!logs")) {
+            const logDir = config.logDir || "data/logs";
+            const combinedLogPath = path.join(logDir, "bot.log");
+            if (!fs.existsSync(combinedLogPath)) {
+                await message.reply("No log file found at `" + combinedLogPath + "` yet.");
+                return;
+            }
+
+            if (content.includes("file")) {
+                const attachment = new AttachmentBuilder(combinedLogPath, { name: "bot.log" });
+                await message.reply({ content: "📄 Here is the latest log file:", files: [attachment] });
+                return;
+            }
+
+            try {
+                const fileContent = fs.readFileSync(combinedLogPath, "utf-8");
+                const lines = fileContent.trim().split("\n");
+                const recent = lines.slice(-15).join("\n");
+                const sanitized = recent.length > 1900 ? recent.slice(-1900) : recent;
+                await message.reply("```log\n" + sanitized + "\n```");
+            } catch (e) {
+                await message.reply("Failed reading log file: " + e.message);
+            }
         } else if (content === "!stop skinpeek" || content === "!stop bot" || content === "!stop valorantstorecheck") {
             return client.destroy();
         } else if (content === "!update") {
@@ -1017,16 +1042,15 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     if (filteredResults.length === 0) {
-                        if (searchResults.length === 0) return await interaction.followUp({
+                        if (searchResults.length === 0) return await interaction.editReply({
                             embeds: [basicEmbed(s(interaction).error.SKIN_NOT_FOUND)]
                         });
 
                         const skin = searchResults[0].obj;
                         const otherAlert = alertExists(interaction.user.id, skin.uuid);
-                        return await interaction.followUp({
+                        return await interaction.editReply({
                             embeds: [basicEmbed(s(interaction).error.DUPLICATE_ALERT.f({ s: await skinNameAndEmoji(skin, interaction.channel, interaction), c: otherAlert.channel_id }))],
                             components: [removeAlertActionRow(interaction.user.id, skin.uuid, s(interaction).info.REMOVE_ALERT_BUTTON)],
-                            ephemeral: true
                         });
                     } else if (filteredResults.length === 1 ||
                         l(filteredResults[0].obj.names, interaction.locale).toLowerCase() === searchQuery.toLowerCase() ||
@@ -1038,7 +1062,7 @@ client.on("interactionCreate", async (interaction) => {
                             channel_id: interaction.channelId
                         });
 
-                        return await interaction.followUp({
+                        return await interaction.editReply({
                             embeds: [await skinChosenEmbed(interaction, skin)],
                             components: [removeAlertActionRow(interaction.user.id, skin.uuid, s(interaction).info.REMOVE_ALERT_BUTTON)],
                         });
@@ -1052,7 +1076,7 @@ client.on("interactionCreate", async (interaction) => {
                         });
                         row.addComponents(new StringSelectMenuBuilder().setCustomId("skin-select").setPlaceholder(s(interaction).info.ALERT_CHOICE_PLACEHOLDER).addOptions(options));
 
-                        await interaction.followUp({
+                        await interaction.editReply({
                             embeds: [secondaryEmbed(s(interaction).info.ALERT_CHOICE)],
                             components: [row]
                         });
@@ -1488,7 +1512,8 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.values[0].startsWith("levels") || interaction.values[0].startsWith("chromas")) selectType = "get-level-video"
             switch (selectType) {
                 case "skin-select": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    const originalUserId = interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id;
+                    if (originalUserId && originalUserId !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_ALERT)],
                             ephemeral: true
@@ -1519,7 +1544,8 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "skin-select-stats": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    const originalUserId = interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id;
+                    if (originalUserId && originalUserId !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_STATS)],
                             ephemeral: true
@@ -1538,7 +1564,8 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "bundle-select": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    const originalUserId = interaction.message.interactionMetadata?.user?.id || interaction.message.interaction?.user?.id;
+                    if (originalUserId && originalUserId !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_BUNDLE)],
                             ephemeral: true
@@ -1672,9 +1699,10 @@ client.on("interactionCreate", async (interaction) => {
 
                     if (interaction.message.flags.has(MessageFlagsBitField.Flags.Ephemeral)) return; // message is ephemeral
 
-                    if (interaction.message.interaction && interaction.message.interaction.commandName === "alert") { // if the message is the response to /alert
+                    const commandName = interaction.message.interactionMetadata?.name || interaction.message.interaction?.commandName;
+                    if (commandName === "alert") { // if the message is the response to /alert
                         await interaction.message.delete().catch(() => { });
-                    } else if (!interaction.message.interaction) { // the message is an automatic alert
+                    } else { // the message is an automatic alert
                         const actionRow = removeAlertActionRow(interaction.user.id, uuid, s(interaction).info.REMOVE_ALERT_BUTTON);
                         actionRow.components[0].setDisabled(true).setLabel("Removed");
 

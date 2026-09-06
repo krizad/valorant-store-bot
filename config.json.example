@@ -28,5 +28,7 @@
   "ownerName": "",
   "status": "Up and running!",
   "logToChannel": "",
-  "logFrequency": "*/10 * * * * *"
+  "logFrequency": "*/10 * * * * *",
+  "logToFile": true,
+  "logDir": "data/logs"
 }

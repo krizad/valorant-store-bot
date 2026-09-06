@@ -33,10 +33,12 @@
     "update:assets": "node scripts/updateAssets.js",
     "diag": "node diag.js",
     "package:plesk": "node scripts/package-plesk.js",
+    "package:extension": "node scripts/package-extension.js",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "logs": "tail -n 50 -f data/logs/bot.log"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",

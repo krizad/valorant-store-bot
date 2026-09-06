@@ -684,6 +684,7 @@
                     <!-- Method Selection Tabs -->
                     <div class="method-tabs">
                         <button type="button" id="tab-url-btn" class="tab-btn active" data-i18n="tabUrl">{{TAB_URL}}</button>
+                        <button type="button" id="tab-ext-btn" class="tab-btn" data-i18n="tabExtension">{{TAB_EXTENSION}}</button>
                         <button type="button" id="tab-bm-btn" class="tab-btn" data-i18n="tabBookmarklet">{{TAB_BOOKMARKLET}}</button>
                     </div>
 
@@ -711,7 +712,37 @@
                         </button>
                     </div>
 
-                    <!-- Method B: 1-Click Bookmarklet Tool (Desktop) -->
+                    <!-- Method B: Browser Extension (1-Click) -->
+                    <div id="method-ext-pane" class="bookmarklet-tab-content">
+                        <p style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px;" data-i18n="extensionTitle">
+                            {{EXTENSION_TITLE}}
+                        </p>
+                        <p style="font-size: 11px; color: var(--val-gray); line-height: 1.4; margin-bottom: 12px;" data-i18n="extensionHint">
+                            {{EXTENSION_HINT}}
+                        </p>
+
+                        <!-- Extension Detected State -->
+                        <div id="ext-detected-box" style="display: none; background: rgba(0, 245, 155, 0.1); border: 1px solid rgba(0, 245, 155, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                            <p style="font-size: 12px; color: var(--val-green); font-weight: 700; margin-bottom: 8px;" data-i18n="extensionDetectedNotice">
+                                {{EXTENSION_DETECTED_NOTICE}}
+                            </p>
+                            <button type="button" id="ext-sync-now-btn" class="btn-submit-action" style="background: var(--val-green); color: #0f1923;">
+                                <span data-i18n="extensionSyncNowBtn">{{EXTENSION_SYNC_NOW_BTN}}</span>
+                            </button>
+                        </div>
+
+                        <!-- Extension Download State -->
+                        <div id="ext-download-box">
+                            <a href="/download/extension" class="bookmarklet-btn-styled" style="background: var(--val-red); border-color: var(--val-red);">
+                                <span data-i18n="extensionDownloadBtn">{{EXTENSION_DOWNLOAD_BTN}}</span>
+                            </a>
+                            <p style="font-size: 11px; color: var(--val-gray); margin-top: 8px; line-height: 1.5;" data-i18n="extensionInstallGuide">
+                                {{EXTENSION_INSTALL_GUIDE}}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Method C: 1-Click Bookmarklet Tool (Desktop) -->
                     <div id="method-bm-pane" class="bookmarklet-tab-content">
                         <p style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;" data-i18n="bookmarkletTitle">
                             {{BOOKMARKLET_TITLE}}
@@ -768,23 +799,24 @@
 
         // Tab Switching
         const tabUrlBtn = document.getElementById("tab-url-btn");
+        const tabExtBtn = document.getElementById("tab-ext-btn");
         const tabBmBtn = document.getElementById("tab-bm-btn");
         const methodUrlPane = document.getElementById("method-url-pane");
+        const methodExtPane = document.getElementById("method-ext-pane");
         const methodBmPane = document.getElementById("method-bm-pane");
 
-        tabUrlBtn.addEventListener("click", () => {
-            tabUrlBtn.classList.add("active");
-            tabBmBtn.classList.remove("active");
-            methodUrlPane.style.display = "block";
-            methodBmPane.style.display = "none";
-        });
+        function switchTab(activeBtn, activePane) {
+            [tabUrlBtn, tabExtBtn, tabBmBtn].forEach(btn => btn?.classList.remove("active"));
+            [methodUrlPane, methodExtPane, methodBmPane].forEach(pane => {
+                if (pane) pane.style.display = "none";
+            });
+            activeBtn.classList.add("active");
+            activePane.style.display = "block";
+        }
 
-        tabBmBtn.addEventListener("click", () => {
-            tabBmBtn.classList.add("active");
-            tabUrlBtn.classList.remove("active");
-            methodUrlPane.style.display = "none";
-            methodBmPane.style.display = "block";
-        });
+        tabUrlBtn.addEventListener("click", () => switchTab(tabUrlBtn, methodUrlPane));
+        if (tabExtBtn) tabExtBtn.addEventListener("click", () => switchTab(tabExtBtn, methodExtPane));
+        tabBmBtn.addEventListener("click", () => switchTab(tabBmBtn, methodBmPane));
 
         // Determine active language
         const urlParams = new URLSearchParams(window.location.search);
@@ -927,6 +959,53 @@
                 submitBtn.disabled = false;
                 showError(t.networkError + err.message);
             }
+        }
+
+        // Extension Detection & 1-Click Sync
+        const extDetectedBox = document.getElementById("ext-detected-box");
+        const extDownloadBox = document.getElementById("ext-download-box");
+        const extSyncNowBtn = document.getElementById("ext-sync-now-btn");
+
+        function onExtensionDetected() {
+            if (extDetectedBox) extDetectedBox.style.display = "block";
+            if (tabExtBtn && !tabExtBtn.textContent.includes("⚡")) {
+                tabExtBtn.innerHTML = "⚡ " + tabExtBtn.textContent;
+            }
+        }
+
+        if (document.documentElement.dataset.valorantHelperInstalled === "true") {
+            onExtensionDetected();
+        }
+
+        window.addEventListener("valorant-helper-ready", () => {
+            onExtensionDetected();
+        });
+
+        window.addEventListener("message", (e) => {
+            if (e.source !== window || !e.data || e.data.type !== "VALORANT_STORE_LOGIN_RESULT") return;
+            const res = e.data.data;
+            if (res && res.success) {
+                showSuccess(res.username);
+            } else if (res && res.error === "NO_SSID") {
+                showError(currentLang === "th"
+                    ? "ไม่พบคุกกี้ SSID กรุณาล็อกอินที่ auth.riotgames.com ก่อน"
+                    : "No SSID cookie found. Please log in at auth.riotgames.com first.");
+            } else {
+                showError(res?.error || "Extension sync failed");
+            }
+        });
+
+        if (extSyncNowBtn) {
+            extSyncNowBtn.addEventListener("click", () => {
+                const t = translations[currentLang] || translations[defaultPortalLang];
+                showLoading(t.verifyingStatus);
+                window.postMessage({
+                    type: "VALORANT_STORE_AUTO_LOGIN",
+                    token: sessionToken,
+                    portalUrl: window.location.origin,
+                    lang: currentLang
+                }, "*");
+            });
         }
 
         function showLoading(msg) {

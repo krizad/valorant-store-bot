@@ -59,7 +59,7 @@ ValorantStoreCheck/
 │   ├── config.js             # Config loader with .env fallback and defaults synchronization
 │   ├── keepAliveServer.js    # Lightweight Express server (/health endpoint) for keep-alive
 │   ├── languages.js          # Internationalization (i18n) and localized text helpers
-│   ├── logger.js             # Console & Discord channel log dispatcher
+│   ├── logger.js             # Console, rotating file & Discord channel log dispatcher
 │   ├── multiqueue.js         # Generic rate-limiting queue implementation
 │   ├── rateLimit.js          # Riot API rate limit backoff and strike tracker
 │   ├── settings.js           # User configuration manager (privacy, notifications)
@@ -93,6 +93,7 @@ ValorantStoreCheck/
     2. **Direct Modal Button:** For power users wanting to paste the `ssid` cookie directly in Discord without leaving the app.
   - The Web Portal includes:
     - 1-click Riot Login launcher in a new tab.
+    - **1-Click Browser Extension (`extension/`):** Manifest V3 extension with 1-click SSID clipboard copy, auto-detection, and direct `/api/auth/submit` sync without touching DevTools (F12). Downloadable directly via `/download/extension`.
     - Drag-and-drop 1-click Helper Bookmarklet to auto-extract and send the Riot session back to the portal.
     - Input area for pasting `ssid` or redirected auth URL.
     - Live authentication status via `POST /api/auth/submit` and `GET /api/auth/status`.
@@ -178,6 +179,7 @@ Commands require bot mention (e.g., `@Bot !command`) and require the author ID t
 - `!config reload`: Reloads and reapplies settings from disk.
 - `!clearcache`: Clears `data/shopCache` and `data/skins.json` and refetches skin definitions.
 - `!forcealerts`: Manually triggers daily alert check routines across all users.
+- `!logs [file]`: Displays the last 15 log lines or attaches the full `bot.log` file directly in Discord.
 
 ---
 
