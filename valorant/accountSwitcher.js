@@ -1,6 +1,7 @@
 import fs from "fs";
 import {ensureUsersFolder, removeDupeAlerts} from "../misc/util.js";
 import {defaultSettings} from "../misc/settings.js";
+import {isSqliteEnabled, dbReadUser, dbSaveUser, dbDeleteUser, dbDeleteShopCache} from "../services/database.js";
 
 /** JSON format:
  * {
@@ -11,6 +12,9 @@ import {defaultSettings} from "../misc/settings.js";
  */
 
 export const readUserJson = (id) => {
+    if (isSqliteEnabled()) {
+        return dbReadUser(id);
+    }
     try {
         return JSON.parse(fs.readFileSync("data/users/" + id + ".json", "utf-8"));
     } catch(e) {
@@ -38,12 +42,16 @@ export const getUserJson = (id, account=null) => {
 }
 
 export const saveUserJson = (id, json) => {
+    if (isSqliteEnabled()) {
+        dbSaveUser(id, json);
+        return;
+    }
     ensureUsersFolder();
     fs.writeFileSync("data/users/" + id + ".json", JSON.stringify(json, null, 2));
 }
 
 export const saveUser = (user, account=null) => {
-    if(!fs.existsSync("data/users")) fs.mkdirSync("data/users");
+    if(!isSqliteEnabled() && !fs.existsSync("data/users")) fs.mkdirSync("data/users");
 
     const userJson = readUserJson(user.id);
     if(!userJson) {
@@ -109,29 +117,45 @@ export const deleteUser = (id, accountNumber) => {
     const userToDelete = userJson.accounts[indexToDelete];
 
     userJson.accounts.splice(indexToDelete, 1);
-    if(userJson.accounts.length === 0) fs.unlinkSync("data/users/" + id + ".json");
+    if(userJson.accounts.length === 0) {
+        if(isSqliteEnabled()) {
+            dbDeleteUser(id);
+        } else {
+            try {
+                fs.unlinkSync("data/users/" + id + ".json");
+            } catch(e) {}
+        }
+    }
     else if(userJson.currentAccount > userJson.accounts.length) userJson.currentAccount = userJson.accounts.length;
 
     saveUserJson(id, userJson);
 
-    return userToDelete.username;
+    return userToDelete?.username;
 }
 
 export const deleteWholeUser = (id) => {
-    if(!fs.existsSync("data/users")) return;
-
     // get the user's PUUIDs to delete the shop cache
     const data = readUserJson(id);
     if(data) {
         const puuids = data.accounts.map(a => a.puuid);
         for(const puuid of puuids) {
-            try {
-                fs.unlinkSync(`data/shopCache/${puuid}.json`);
-            } catch(e) {}
+            if(isSqliteEnabled()) {
+                dbDeleteShopCache(puuid);
+            } else {
+                try {
+                    fs.unlinkSync(`data/shopCache/${puuid}.json`);
+                } catch(e) {}
+            }
         }
     }
 
-    fs.unlinkSync("data/users/" + id + ".json");
+    if(isSqliteEnabled()) {
+        dbDeleteUser(id);
+    } else {
+        try {
+            fs.unlinkSync("data/users/" + id + ".json");
+        } catch(e) {}
+    }
 }
 
 export const getNumberOfAccounts = (id) => {

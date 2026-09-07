@@ -14,6 +14,7 @@ import {addUser, deleteUser, getAccountWithPuuid, getUserJson, readUserJson, sav
 import {checkRateLimit, isRateLimited} from "../misc/rateLimit.js";
 import {queueCookiesLogin, queueUsernamePasswordLogin} from "./authQueue.js";
 import {waitForAuthQueueResponse} from "../discord/authManager.js";
+import {isSqliteEnabled, dbListUserIds} from "../services/database.js";
 
 export class User {
     constructor({id, puuid, auth, alerts=[], username, region, authFailures, lastFetchedData, lastNoticeSeen, lastSawEasterEgg}) {
@@ -82,6 +83,9 @@ export const getUser = (id, account=null) => {
 
 const userFilenameRegex = /\d+\.json/
 export const getUserList = () => {
+    if (isSqliteEnabled()) {
+        return dbListUserIds();
+    }
     ensureUsersFolder();
     return fs.readdirSync("data/users").filter(filename => userFilenameRegex.test(filename)).map(filename => filename.replace(".json", ""));
 }

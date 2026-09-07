@@ -30,5 +30,7 @@
   "logToChannel": "",
   "logFrequency": "*/10 * * * * *",
   "logToFile": true,
-  "logDir": "data/logs"
+  "logDir": "data/logs",
+  "databaseType": "json",
+  "sqlitePath": "data/database.sqlite"
 }

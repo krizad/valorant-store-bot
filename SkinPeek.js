@@ -4,6 +4,7 @@ import {startBot, client} from "./discord/bot.js";
 import {loadLogger} from "./misc/logger.js";
 import {transferUserDataFromOldUsersJson} from "./valorant/auth.js";
 import {startKeepAliveServer} from "./misc/keepAliveServer.js";
+import {autoMigrateIfEmpty} from "./services/database.js";
 
 /* Valorant Daily Store Discord Bot
  * Enhanced with HTTP Keep-Alive & Web Authentication Portal
@@ -22,6 +23,7 @@ const config = loadConfig();
 if(config) {
     loadLogger();
     transferUserDataFromOldUsersJson();
+    autoMigrateIfEmpty();
     startBot();
 }
 

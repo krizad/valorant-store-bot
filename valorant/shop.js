@@ -15,6 +15,7 @@ import { addStore } from "../misc/stats.js";
 import config from "../misc/config.js";
 import { deleteUser, saveUser } from "./accountSwitcher.js";
 import { mqGetShop, useMultiqueue } from "../misc/multiqueue.js";
+import { isSqliteEnabled, dbGetShopCache, dbSaveShopCache } from "../services/database.js";
 
 export const getShop = async (id, account = null) => {
     if (useMultiqueue()) return await mqGetShop(id, account);
@@ -232,20 +233,26 @@ export const getShopCache = (puuid, target = "offers", print = true) => {
     if (!config.useShopCache) return null;
 
     try {
-        const shopCache = JSON.parse(fs.readFileSync("data/shopCache/" + puuid + ".json", "utf8"));
+        let shopCache;
+        if (isSqliteEnabled()) {
+            shopCache = dbGetShopCache(puuid);
+        } else {
+            shopCache = JSON.parse(fs.readFileSync("data/shopCache/" + puuid + ".json", "utf8"));
+        }
+        if (!shopCache) return null;
 
         let expiresTimestamp;
-        if (target === "offers") expiresTimestamp = shopCache[target].expires;
+        if (target === "offers") expiresTimestamp = shopCache[target]?.expires;
         else if (target === "night_market") expiresTimestamp = shopCache[target] ? shopCache[target].expires : getMidnightTimestamp(shopCache.timestamp);
         else if (target === "bundles") expiresTimestamp = Math.min(...shopCache.bundles.map(bundle => bundle.expires), get9PMTimetstamp(Date.now()));
         else if (target === "all") expiresTimestamp = Math.min(shopCache.offers.expires, ...shopCache.bundles.map(bundle => bundle.expires), get9PMTimetstamp(Date.now()), shopCache.night_market.expires);
         else console.error("Invalid target for shop cache! " + target);
 
-        if (Date.now() / 1000 > expiresTimestamp) return null;
+        if (!expiresTimestamp || Date.now() / 1000 > expiresTimestamp) return null;
 
         if (print) console.log(`Fetched shop cache for user ${discordTag(puuid)}`);
 
-        if (!shopCache.offers.accessory) return null;// If there are no accessories in the cache, it returns null so that the user's shop is checked again.
+        if (!shopCache.offers?.accessory) return null;// If there are no accessories in the cache, it returns null so that the user's shop is checked again.
 
         return shopCache;
     } catch (e) { }
@@ -283,8 +290,13 @@ const addShopCache = (puuid, shopJson) => {
 
     if (shopJson.BonusStore) NMTimestamp = now
 
-    if (!fs.existsSync("data/shopCache")) fs.mkdirSync("data/shopCache");
-    fs.writeFileSync("data/shopCache/" + puuid + ".json", JSON.stringify(shopCache, null, 2));
+    if (isSqliteEnabled()) {
+        const expiresAt = shopCache.offers?.expires || Math.floor(now / 1000) + 86400;
+        dbSaveShopCache(puuid, shopCache, expiresAt);
+    } else {
+        if (!fs.existsSync("data/shopCache")) fs.mkdirSync("data/shopCache");
+        fs.writeFileSync("data/shopCache/" + puuid + ".json", JSON.stringify(shopCache, null, 2));
+    }
 
     console.log(`Added shop cache for user ${discordTag(puuid)}`);
 }

@@ -98,6 +98,7 @@ import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import { spawn } from "child_process";
 import * as fs from "fs";
 import path from "node:path";
+import { isSqliteEnabled, dbClearAllShopCache } from "../services/database.js";
 
 export const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildEmojisAndStickers],
@@ -616,8 +617,13 @@ client.on("messageCreate", async (message) => {
                 await message.reply(s);
             } else if (splits[1] === "clearcache") {
                 await message.channel.send("Deleting all files in data/shopCache...");
-                fs.rmSync("data/shopCache", { force: true, recursive: true });
-                fs.mkdirSync("data/shopCache");
+                if (isSqliteEnabled()) {
+                    dbClearAllShopCache();
+                }
+                if (fs.existsSync("data/shopCache")) {
+                    fs.rmSync("data/shopCache", { force: true, recursive: true });
+                    fs.mkdirSync("data/shopCache");
+                }
 
                 // delete skins.json and reset skin cache
                 await message.channel.send("Deleting skins.json and resetting skin cache...");

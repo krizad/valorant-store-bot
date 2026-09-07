@@ -43,6 +43,14 @@ export const loadConfig = (filename="config.json") => {
         loadedConfig.logDir = process.env.LOG_DIR;
     }
 
+    if (process.env.DATABASE_TYPE && (!loadedConfig.databaseType || loadedConfig.databaseType === "")) {
+        loadedConfig.databaseType = process.env.DATABASE_TYPE;
+    }
+
+    if (process.env.SQLITE_PATH && (!loadedConfig.sqlitePath || loadedConfig.sqlitePath === "")) {
+        loadedConfig.sqlitePath = process.env.SQLITE_PATH;
+    }
+
     if(!loadedConfig.token || loadedConfig.token === "token goes here" || loadedConfig.token === "dummy_token")
         return console.error("You forgot to put your bot token in config.json or DISCORD_TOKEN in .env!");
 
@@ -109,6 +117,8 @@ export const loadConfig = (filename="config.json") => {
     applyConfig(loadedConfig, "logToFile", true);
     applyConfig(loadedConfig, "logDir", "data/logs");
     applyConfig(loadedConfig, "publicUrl", process.env.PUBLIC_URL || "");
+    applyConfig(loadedConfig, "databaseType", "json");
+    applyConfig(loadedConfig, "sqlitePath", "data/database.sqlite");
 
     saveConfig(filename, config);
 

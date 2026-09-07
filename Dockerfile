@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# Install libc6-compat for native Skia @napi-rs/canvas module support on Alpine
-RUN apk add --no-cache libc6-compat
+# Install libc6-compat and build tools for native Skia @napi-rs/canvas & better-sqlite3 module support on Alpine
+RUN apk add --no-cache libc6-compat python3 make g++
 
 WORKDIR /usr/app
 

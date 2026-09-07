@@ -86,7 +86,7 @@ if (fs.existsSync(path.resolve('config.json'))) {
     } catch (_) {}
 }
 
-for (const k of ['DISCORD_TOKEN', 'CLIENT_ID', 'PORT', 'NODE_ENV', 'PUBLIC_URL', 'HDEV_TOKEN', 'DEFAULT_REGION']) {
+for (const k of ['DISCORD_TOKEN', 'CLIENT_ID', 'PORT', 'NODE_ENV', 'PUBLIC_URL', 'HDEV_TOKEN', 'DEFAULT_REGION', 'DATABASE_TYPE', 'SQLITE_PATH']) {
     let v = process.env[k];
     const isSecret = ['DISCORD_TOKEN', 'HDEV_TOKEN'].includes(k);
     let source = 'env';
@@ -100,6 +100,12 @@ for (const k of ['DISCORD_TOKEN', 'CLIENT_ID', 'PORT', 'NODE_ENV', 'PUBLIC_URL',
             source = 'config.json';
         } else if (k === 'DEFAULT_REGION' && configJson.region) {
             v = configJson.region;
+            source = 'config.json';
+        } else if (k === 'DATABASE_TYPE' && configJson.databaseType) {
+            v = configJson.databaseType;
+            source = 'config.json';
+        } else if (k === 'SQLITE_PATH' && configJson.sqlitePath) {
+            v = configJson.sqlitePath;
             source = 'config.json';
         }
     }
@@ -132,7 +138,8 @@ const modules = [
     'dotenv',
     'node-cron',
     'fuzzysort',
-    'unofficial-valorant-api'
+    'unofficial-valorant-api',
+    'better-sqlite3'
 ];
 
 for (const mod of modules) {
@@ -143,6 +150,29 @@ for (const mod of modules) {
         allOk = false;
         log(`[FAIL] import '${mod}': ${err.message}`);
     }
+}
+
+// Test better-sqlite3 initialization and schema
+try {
+    const { getDatabase } = await import('./services/database.js');
+    const testDbPath = path.join(dataDir, '.test_diag.sqlite');
+    const db = getDatabase(testDbPath);
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
+    if (tables.includes('users') && tables.includes('shop_cache')) {
+        log(`[PASS] SQLite engine & schema verification     : OK (users, shop_cache tables verified)`);
+    } else {
+        allOk = false;
+        log(`[FAIL] SQLite engine & schema verification     : Missing tables (${tables.join(', ')})`);
+    }
+    db.close();
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    const walPath = `${testDbPath}-wal`;
+    const shmPath = `${testDbPath}-shm`;
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+} catch (err) {
+    allOk = false;
+    log(`[FAIL] SQLite engine & schema verification     : ${err.message}`);
 }
 
 // Test @napi-rs/canvas native Skia initialization

@@ -53,7 +53,8 @@ ValorantStoreCheck/
 │   └── profile.js            # User rank, MMR, and account details
 │
 ├── services/                 # Auxiliary services
-│   └── canvasBanner.js       # 2x2 grid storefront image generator using @napi-rs/canvas
+│   ├── canvasBanner.js       # 2x2 grid storefront image generator using @napi-rs/canvas
+│   └── database.js           # SQLite storage adapter & query manager (better-sqlite3)
 │
 ├── misc/                     # Utilities & configuration helpers
 │   ├── config.js             # Config loader with .env fallback and defaults synchronization
@@ -111,6 +112,14 @@ ValorantStoreCheck/
 - If `config.json` is missing or has default placeholder tokens, the system gracefully falls back to `process.env.DISCORD_TOKEN`.
 - Server port defaults to `process.env.PORT || 3000`.
 
+### 5. Dual Storage Engine (Flat JSON vs SQLite Database)
+- **Context:** High-concurrency deployments face disk I/O bottlenecks and file-locking race conditions when reading hundreds of user JSON files sequentially for alerts.
+- **Solution:**
+  - `services/database.js` provides an opt-in, high-performance SQLite engine using `better-sqlite3`.
+  - Stores `users` (accounts, settings, alerts) and `shop_cache` (store offers with TTL) with WAL mode enabled.
+  - Fully backward compatible with `databaseType: "json"` (default).
+  - Automatic migration on startup if SQLite is enabled and empty, plus standalone CLI: `npm run migrate:sqlite`.
+
 ---
 
 ## Configuration & Environment Variables
@@ -119,7 +128,7 @@ ValorantStoreCheck/
 ```bash
 # Discord Bot Credentials
 DISCORD_TOKEN=your_discord_bot_token_here
-CLIENT_ID=your_discord_client_id_here
+CLIENT_ID=your_discord_application_client_id_here
 
 # Web Server Port & Environment
 PORT=3000
@@ -128,11 +137,18 @@ PUBLIC_URL=http://localhost:3000
 
 # Valorant Defaults
 DEFAULT_REGION=ap
+
+# Database Storage Option ('json' or 'sqlite')
+DATABASE_TYPE=json
+SQLITE_PATH=data/database.sqlite
 ```
 
 ### Key Parameters in `config.json`
 - `token`: Discord Bot Token (overridden by `DISCORD_TOKEN` if specified).
 - `ownerId`: Discord User ID or Guild ID allowed to run admin commands (`!deploy`, `!config`, etc.).
+- `databaseType`: Storage backend (`"json"` or `"sqlite"`).
+- `sqlitePath`: Path to SQLite database file (default `"data/database.sqlite"`).
+- `useShopCache`: Enable caching daily store offers to minimize Riot API calls.
 - `useShopQueue` / `useLoginQueue`: Enable queues to avoid Riot API 429 rate limiting.
 - `fetchSkinPrices` / `fetchSkinRarities`: Enhance shop data with pricing and tier colors.
 - `refreshSkins`: Cron expression to periodically refresh skin definitions from Riot endpoints.
