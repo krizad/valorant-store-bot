@@ -156,8 +156,14 @@ export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStat
         });
     });
 
-    const server = app.listen(port, () => {
-        console.log(`[Keep-Alive] HTTP server listening on port ${port}`);
+    const isPassenger = typeof PhusionPassenger !== "undefined";
+    const listenTarget = isPassenger ? "passenger" : port;
+    const server = app.listen(listenTarget, () => {
+        if (isPassenger) {
+            console.log("[Keep-Alive] HTTP server listening via Phusion Passenger");
+        } else {
+            console.log(`[Keep-Alive] HTTP server listening on port ${port}`);
+        }
     });
 
     server.on("error", (err) => {

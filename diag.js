@@ -27,6 +27,8 @@ const checks = [
     ['views/login.html', 'Web Portal login template'],
     ['languages/en-GB.json', 'i18n language catalog'],
     ['assets/vp.png', 'VP currency icon asset'],
+    ['assets/valorant-store-helper.zip', 'Extension download package'],
+    ['_passenger.cjs', 'Plesk Passenger loader'],
     ['package.json', 'Package manifest']
 ];
 
