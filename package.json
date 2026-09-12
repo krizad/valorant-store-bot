@@ -42,7 +42,7 @@
     "logs": "tail -n 50 -f data/logs/bot.log"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.100",
+    "@napi-rs/canvas": "^1.0.9",
     "axios": "^1.20.0",
     "better-sqlite3": "^13.0.3",
     "discord.js": "^14.27.0",
