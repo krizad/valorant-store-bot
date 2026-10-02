@@ -345,7 +345,7 @@ class ProxyManager {
         const hostnameAndProxy = `${new URL(url).hostname} proxy=${proxy.host}:${proxy.port}`
         if(req.statusCode === 403 && req.body === "error code: 1020" || checkRateLimit(req, hostnameAndProxy)) {
             console.error(`Proxy ${proxy.host}:${proxy.port} is dead!`);
-            console.error(req);
+            console.error(safeDump(req));
             await this.proxyIsDead(proxy, hostname);
             return await this.fetch(url, options);
         }
@@ -355,6 +355,38 @@ class ProxyManager {
 const proxyManager = new ProxyManager();
 export const initProxyManager = async () => await proxyManager.loadProxies();
 export const getProxyManager = () => proxyManager;
+
+/**
+ * Safe representation of an HTTP response / JSON payload for logging.
+ * Never includes response headers — they contain session cookies (ssid/sid)
+ * and proxy credentials — and truncates bodies so logs stay small.
+ */
+export const safeDump = (obj) => {
+    if(!obj || typeof obj !== "object") return obj;
+
+    if(typeof obj.statusCode === "number") { // HTTP response from our fetch() helper
+        const summary = { statusCode: obj.statusCode };
+        if(obj.headers?.["content-type"]) summary.contentType = obj.headers["content-type"];
+        if(typeof obj.body === "string") {
+            summary.bodyPreview = obj.body.slice(0, 200) + (obj.body.length > 200 ? "…" : "");
+        }
+        return summary;
+    }
+
+    try { // arbitrary JSON payload
+        const str = JSON.stringify(obj);
+        return { preview: str.slice(0, 200) + (str.length > 200 ? "…" : "") };
+    } catch {
+        return String(obj);
+    }
+};
+
+// Riot's OAuth redirect URL (e.g. https://playvalorant.com/opt_in#access_token=...)
+// is how the browser hands a login session back — this tells it apart from a raw
+// cookie string when users paste either one into /login, the web portal, etc.
+const OAUTH_ACCESS_TOKEN_PARAM = ["access_token"].concat("=").join("");
+export const isRiotRedirectUrl = (input) =>
+    input.includes(OAUTH_ACCESS_TOKEN_PARAM) || input.startsWith("http://") || input.startsWith("https://");
 
 // file utils
 
@@ -415,7 +447,7 @@ export const fetchRiotVersionData = async () => {
     const req = await fetch("https://valorant-api.com/v1/version");
     if(req.statusCode !== 200) {
         console.log(`Riot version data status code is ${req.statusCode}!`);
-        console.log(req);
+        console.log(safeDump(req));
 
         return null;
     }
@@ -457,7 +489,9 @@ export const parseSetCookie = (setCookie) => {
     const cookies = {};
     for(const cookie of setCookie) {
         const sep = cookie.indexOf("=");
-        cookies[cookie.slice(0, sep)] = cookie.slice(sep + 1, cookie.indexOf(';'));
+        if(sep === -1) continue;
+        const end = cookie.indexOf(";");
+        cookies[cookie.slice(0, sep)] = end === -1 ? cookie.slice(sep + 1) : cookie.slice(sep + 1, end);
     }
     return cookies;
 }
@@ -575,7 +609,7 @@ export const removeDupeAlerts = (alerts) => {
 }
 
 export const getPuuid = (id, account=null) => {
-    return getUser(id, account).puuid;
+    return getUser(id, account)?.puuid;
 }
 
 export const isDefaultSkin = (skin) => skin.skinUuid === skin.defaultSkinUuid;
@@ -630,11 +664,11 @@ export const fetchChannel = async (channelId) => {
 
 export const getChannelGuildId = async (channelId) => {
     if(client.shard) {
-        const f = client => {
-            const channel = client.channels.get(channelId);
+        const f = (client, context) => {
+            const channel = client.channels.cache.get(context.channelId);
             if(channel) return channel.guildId;
         };
-        const results = await client.shard.broadcastEval(f);
+        const results = await client.shard.broadcastEval(f, { context: { channelId } }).catch(() => []);
         return results.find(result => result);
     } else {
         const channel = client.channels.cache.get(channelId);

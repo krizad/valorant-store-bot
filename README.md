@@ -10,7 +10,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
-[Features](#-key-features) • [Attribution](#-upstream-project--original-attribution) • [3rd-Party APIs](#-third-party-apis--credits) • [Quick Start](#-installation--quick-start) • [Configuration](#-configuration--environment-variables) • [Commands](#-slash-commands-reference) • [FAQ](#-security--faq)
+[Features](#-key-features) • [Attribution](#-upstream-project--original-attribution) • [3rd-Party APIs](#-third-party-apis--credits) • [Quick Start](#-installation--quick-start) • [Configuration](#-configuration--environment-variables) • [Commands](#-slash-commands-reference) • [Login Guide](#-how-to-log-in--step-by-step) • [FAQ](#-security--faq)
 
 ---
 
@@ -263,6 +263,50 @@ HDEV_TOKEN=
 
 ---
 
+## 🔐 How to Log In — Step by Step
+
+Riot blocks automated username/password logins with Cloudflare Turnstile & hCaptcha, so the bot never asks for your password. Instead it uses your browser's **Riot session (`ssid` cookie)** to obtain short-lived tokens from `auth.riotgames.com`. There are three ways to log in — pick whichever is easiest:
+
+### Method 1: Web Portal (Recommended)
+
+1. In Discord, run **`/login`** (no arguments). The bot replies with a **private (ephemeral) message** containing two buttons.
+2. Click **"Login via Web Portal"**. It opens a page on your bot's own web server using a **one-time token that expires in 10 minutes** — nobody else can use your link.
+3. On the portal, click **"Login with Riot"** (Step 1). A new tab opens `account.riotgames.com` — log in there as you normally would.
+4. Return to the portal tab and send your session back using **any one** of the three tabs:
+   - **URL** — copy the address of the Riot tab you were redirected to after logging in (it contains `access_token=...`) and paste it into the box.
+   - **Extension** — click *Download Extension* on the portal, install it in Chrome, then press the extension's **1-Click Sync** button while on the Riot tab. It extracts the `ssid` cookie and sends it to the portal automatically, no DevTools needed.
+   - **Bookmarklet** — drag the portal's bookmarklet button onto your bookmarks bar, then click it once while on the logged-in Riot tab. It auto-extracts and submits the session for you.
+5. The portal shows a live status — when it says success, you're logged in and can close both tabs.
+
+### Method 2: Paste the `ssid` cookie directly in Discord
+
+1. In your browser, log in at [account.riotgames.com](https://account.riotgames.com/).
+2. Press **F12** → **Application** tab → **Cookies** → `https://account.riotgames.com` → copy the value of the **`ssid`** cookie.
+3. In Discord either:
+   - run `/login`, press the **"Paste ssid"** button and paste the value into the modal, or
+   - run `/login ssid:<paste the value here>` directly.
+4. You may paste the raw value (the bot adds `ssid=` for you) or the full cookie — both work.
+
+### Method 3: `/cookies` (full cookie header)
+
+If you already copied the whole `Cookie` header from DevTools (**Network** tab → any `auth.riotgames.com` request → Request Headers → `cookie:`), run:
+
+```
+/cookies cookies:<paste the full header here>
+```
+
+### After logging in
+
+- Check your store with `/shop`, `/accessoryshop`, `/bundles`, `/nightmarket`, `/balance`.
+- Save multiple accounts (up to `maxAccountsPerUser`) and switch with `/account` / list them with `/accounts`.
+- `/update` refreshes your stored username/region, `/logout` removes your credentials, `/forget` deletes the account and its cached data entirely.
+- Set up `/alert <skin>` to get pinged when a skin appears in your shop.
+- When your session eventually expires, the bot's daily alerts will message you — just `/login` again.
+
+> 💡 All login replies are **ephemeral** (visible only to you), and your `ssid` is stored only on the bot's own host in `data/users/`.
+
+---
+
 ## 🔒 Security & FAQ
 
 ### Can I get banned for using this bot?
@@ -272,8 +316,10 @@ HDEV_TOKEN=
 Riot Games requires Cloudflare Turnstile verification on username/password endpoints, which automated bots cannot complete. Instead, ValorantStoreCheck uses the **Riot Session `ssid` Cookie**:
 1. You log in to the official Riot website ([playvalorant.com](https://playvalorant.com/)) in your normal browser.
 2. The bot generates a 10-minute temporary auth token and opens a secure Web Portal (`/auth/login`).
-3. You use our 1-click helper bookmarklet to send the `ssid` cookie to the bot.
+3. You use the 1-click browser extension, the helper bookmarklet, a pasted redirect URL, or the `ssid` modal to send the session cookie to the bot.
 4. The bot exchanges this cookie directly with `auth.riotgames.com` to receive short-lived access tokens.
+
+See the full walkthrough in [How to Log In — Step by Step](#-how-to-log-in--step-by-step).
 
 ### Are my credentials safe?
 - Your passwords are **never** required.

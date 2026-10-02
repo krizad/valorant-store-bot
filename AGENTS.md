@@ -35,15 +35,25 @@ ValorantStoreCheck/
 ├── docker-compose.yml        # Docker compose service definition
 │
 ├── discord/                  # Discord bot logic
-│   ├── bot.js                # Discord client initialization, slash & prefix command handlers, events
+│   ├── bot.js                # Bot core: client setup, ClientReady startup, interaction routing
+│   ├── commands.js           # Slash command definitions (pure data, one entry per command)
+│   ├── tasks.js              # Cron jobs (alert checks, version polling, log channel flushing)
+│   ├── adminCommands.js      # Owner-only prefix commands (!deploy, !config, !forcealerts, ...)
+│   ├── interactions/         # Interaction handlers, one module per interaction type
+│   │   ├── slashCommands.js  # /command switch handlers (one case per command)
+│   │   ├── selectMenus.js    # String select menu interactions (skin/bundle/level pickers)
+│   │   ├── buttons.js        # Button interactions + gotopage modal submission
+│   │   ├── modals.js         # Login ssid modal submission
+│   │   ├── autocomplete.js   # Autocomplete responders (skins, bundles, accounts)
+│   │   └── handleError.js    # Shared interaction error responder
 │   ├── embed.js              # Discord embed layout builders and UI responses
 │   ├── alerts.js             # Daily store alert scheduler and notification dispatcher
-│   ├── authManager.js        # Auth state coordination and queue resolution
+│   ├── authManager.js        # Discord-side auth UX (queue wait embeds, retryable login failures)
 │   └── emoji.js              # Custom server emoji uploader & VP/Radianite icon manager
 │
 ├── valorant/                 # Riot Games API & User Session Management
 │   ├── auth.js               # User authentication, token refreshing, cookie extraction
-│   ├── authQueue.js          # Queue mechanism to throttle concurrent authentication attempts
+│   ├── authQueue.js          # Queue mechanism to throttle concurrent auth attempts + queue wait polling
 │   ├── accountSwitcher.js    # Multi-account data storage, profile switching logic
 │   ├── shop.js               # Daily store, night market, bundle, and accessory fetchers
 │   ├── shopManager.js        # Shop queue coordination to avoid Riot rate-limits

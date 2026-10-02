@@ -48,7 +48,14 @@ const formatArg = (arg) => {
 const sanitizeLog = (str) => {
     return str
         .replace(/(Bearer\s+)[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/g, "$1[REDACTED_JWT]")
-        .replace(/(ssid=)[^;\s]+/gi, "$1[REDACTED_SSID]")
+        .replace(/("X-Riot-Entitlements-JWT"\s*:\s*)"[^"]*"/gi, '$1"[REDACTED_JWT]"')
+        .replace(/(X-Riot-Entitlements-JWT:\s*)\S+/gi, "$1[REDACTED_JWT]")
+        // riot session cookies + any cookie name=value pair in cookie strings or JSON dumps
+        .replace(/((?:ssid|sid|tdid|cit)=)[^;"'\s,]+/gi, "$1[REDACTED_COOKIE]")
+        .replace(/(("?:?set-?"?cookie"?\s*[:=]\s*)[^"'\n]*?(?:ssid|sid|tdid|cit)=)[^;"'\s,]+/gi, "$1[REDACTED_COOKIE]")
+        // proxy credentials and any Basic auth header
+        .replace(/(basic\s+)[A-Za-z0-9+/=]{8,}/gi, "$1[REDACTED]")
+        .replace(/(proxy-authorization"?[:=]\s*)"?[^"'\n]+/gi, "$1[REDACTED]")
         .replace(/("?(?:password|token|HDevToken|DISCORD_TOKEN)"?\s*[:=]\s*)"[^"]+"/gi, '$1"[REDACTED]"');
 };
 
@@ -106,13 +113,13 @@ export const loadLogger = () => {
     console.log = (...args) => {
         oldLog(shardString(), ...args);
         writeToFile("INFO", ...args);
-        if (config.logToChannel) messagesToLog.push(shardString() + escapeMarkdown(args.map(formatArg).join(" ")));
+        if (config.logToChannel) messagesToLog.push(shardString() + escapeMarkdown(sanitizeLog(args.map(formatArg).join(" "))));
     };
 
     console.warn = (...args) => {
         oldWarn(shardString(), ...args);
         writeToFile("WARN", ...args);
-        if (config.logToChannel) messagesToLog.push("⚠️ " + shardString() + escapeMarkdown(args.map(formatArg).join(" ")));
+        if (config.logToChannel) messagesToLog.push("⚠️ " + shardString() + escapeMarkdown(sanitizeLog(args.map(formatArg).join(" "))));
     };
 
     console.error = (...args) => {
@@ -123,9 +130,11 @@ export const loadLogger = () => {
                 "> " +
                     shardString() +
                     escapeMarkdown(
-                        args
-                            .map((e) => (e instanceof Error ? e.stack : formatArg(e)).split("\n").join("\n> " + shardString()))
-                            .join(" ")
+                        sanitizeLog(
+                            args
+                                .map((e) => (e instanceof Error ? e.stack : formatArg(e)).split("\n").join("\n> " + shardString()))
+                                .join(" ")
+                        )
                     )
             );
         }
@@ -143,7 +152,7 @@ export const addMessagesToLog = (messages) => {
     messagesToLog.push(...messages);
 };
 
-export const sendConsoleOutput = () => {
+export const sendConsoleOutput = async () => {
     try {
         if (!client || client.destroyed || !messagesToLog.length) return;
 
@@ -159,11 +168,20 @@ export const sendConsoleOutput = () => {
         } else if (channel) {
             while (messagesToLog.length) {
                 let s = "";
-                while (messagesToLog.length && s.length + messagesToLog[0].length < 2000) {
+                while (messagesToLog.length && s.length + messagesToLog[0].length < 1900) {
                     s += messagesToLog.shift() + "\n";
                 }
+                // A single entry longer than the batch limit would never fit; truncate it
+                // so the loop always makes progress instead of spinning forever
+                if (!s) {
+                    s = messagesToLog.shift().slice(0, 1900) + "\n…";
+                }
 
-                channel.send(s);
+                try {
+                    await channel.send(s);
+                } catch (e) {
+                    localError("Failed to send log batch to the log channel:", e.message);
+                }
             }
         }
 

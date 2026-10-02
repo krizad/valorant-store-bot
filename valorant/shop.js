@@ -4,6 +4,7 @@ import {
     discordTag,
     fetch,
     formatBundle,
+    safeDump,
     formatNightMarket,
     getPuuid,
     isMaintenance, isSameDay,
@@ -36,7 +37,7 @@ export const getShop = async (id, account = null) => {
         },
         body: JSON.stringify({})
     });
-    console.assert(req.statusCode === 200, `Valorant skins offers code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant skins offers code is ${req.statusCode}!`, safeDump(req));
 
     let json;
     try {
@@ -59,7 +60,7 @@ export const getShop = async (id, account = null) => {
     } catch (e) {
         console.error("Error adding shop stats!");
         console.error(e);
-        console.error(json);
+        console.error(safeDump(json));
     }
 
     // add to shop cache
@@ -75,11 +76,18 @@ export const getShop = async (id, account = null) => {
         }
     }
 
-    // save bundle data & prices
-    Promise.all(json.FeaturedBundle.Bundles.map(rawBundle => formatBundle(rawBundle))).then(async bundles => {
-        for (const bundle of bundles)
-            await addBundleData(bundle);
-    });
+    // save bundle data & prices (in the background, but never let it crash the shop response)
+    if (json.FeaturedBundle?.Bundles) {
+        Promise.all(json.FeaturedBundle.Bundles.map(rawBundle => formatBundle(rawBundle)))
+            .then(async bundles => {
+                for (const bundle of bundles)
+                    await addBundleData(bundle);
+            })
+            .catch(e => {
+                console.error("Error caching bundle data!");
+                console.error(e);
+            });
+    }
 
     return { success: true, shop: json };
 }
@@ -91,19 +99,22 @@ export const getOffers = async (id, account = null) => {
     const resp = await getShop(id, account);
     if (!resp.success) return resp;
 
+    // Shop layout can be null while an act is transitioning
+    if (!resp.shop?.SkinsPanelLayout) return { success: false, maintenance: true };
+
     return await easterEggOffers(id, account, {
         success: true,
         offers: resp.shop.SkinsPanelLayout.SingleItemOffers,
         expires: Math.floor(Date.now() / 1000) + resp.shop.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds,
         accessory: {
-            offers: (resp.shop.AccessoryStore.AccessoryStoreOffers || []).map(rawAccessory => {
+            offers: (resp.shop.AccessoryStore?.AccessoryStoreOffers || []).map(rawAccessory => {
                 return {
                     cost: rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"],
                     rewards: rawAccessory.Offer.Rewards,
                     contractID: rawAccessory.ContractID
                 }
             }),
-            expires: Math.floor(Date.now() / 1000) + resp.shop.AccessoryStore.AccessoryStoreRemainingDurationInSeconds
+            expires: Math.floor(Date.now() / 1000) + (resp.shop.AccessoryStore?.AccessoryStoreRemainingDurationInSeconds || 0)
         }
     });
 }
@@ -150,7 +161,7 @@ export const getBalance = async (id, account = null) => {
             ...riotClientHeaders(),
         }
     });
-    console.assert(req.statusCode === 200, `Valorant balance code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant balance code is ${req.statusCode}!`, safeDump(req));
 
     let json;
     try {
@@ -183,11 +194,17 @@ export const getNextNightMarketTimestamp = async () => {
     if (nextNMTimestampUpdated > Date.now() - 5 * 60 * 1000) return nextNMTimestamp;
 
     // thx Mistral for maintaining this!
-    const req = await fetch("https://gist.githubusercontent.com/mistralwz/17bb10db4bb77df5530024bcb0385042/raw/nmdate.txt");
+    try {
+        const req = await fetch("https://gist.githubusercontent.com/mistralwz/17bb10db4bb77df5530024bcb0385042/raw/nmdate.txt");
 
-    const [timestamp] = req.body.split("\n");
-    nextNMTimestamp = parseInt(timestamp);
-    if (isNaN(nextNMTimestamp) || nextNMTimestamp < Date.now() / 1000) nextNMTimestamp = null;
+        const [timestamp] = req.body.split("\n");
+        nextNMTimestamp = parseInt(timestamp);
+        if (isNaN(nextNMTimestamp) || nextNMTimestamp < Date.now() / 1000) nextNMTimestamp = null;
+    } catch (e) {
+        console.error("Failed fetching the next night market date!");
+        console.error(e);
+        nextNMTimestamp = null;
+    }
 
     nextNMTimestampUpdated = Date.now();
     return nextNMTimestamp;

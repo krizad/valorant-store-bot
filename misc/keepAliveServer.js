@@ -3,8 +3,7 @@ import path from "node:path";
 import express from "express";
 import { getLoginSession, updateLoginSession } from "./sessionStore.js";
 import { renderWebPortalHtml, renderExpiredOrInvalidHtml } from "./webPortalHtml.js";
-import { queueCookiesLogin, queueRedirectUrlLogin } from "../valorant/authQueue.js";
-import { waitForAuthQueueResponse } from "../discord/authManager.js";
+import { queueCookiesLogin, queueRedirectUrlLogin, waitForAuthQueueResponse } from "../valorant/authQueue.js";
 import { getUser } from "../valorant/auth.js";
 import { resolvePublicUrl } from "./config.js";
 
@@ -90,6 +89,17 @@ export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStat
             });
         }
 
+        // sessions are one-time: once a login succeeded, the token must not be reused
+        // to attach a different Riot session
+        if (session.status === "success") {
+            return res.status(400).json({
+                success: false,
+                error: isTh
+                    ? "เซสชันนี้ถูกใช้งานไปแล้ว กรุณากด /login ใน Discord เพื่อรับลิงก์ใหม่"
+                    : "This session has already been used. Please run /login in Discord for a new link."
+            });
+        }
+
         let input = (rawCookies || "").trim();
         if (!input) {
             return res.status(400).json({
@@ -168,7 +178,8 @@ export function startKeepAliveServer(port = process.env.PORT || 3000, getBotStat
 
     server.on("error", (err) => {
         if (err.code === "EADDRINUSE") {
-            console.warn(`[Keep-Alive] Port ${port} is in use, retrying on alternative or continuing...`);
+            // in sharded mode every worker runs this; only the one that got the port serves HTTP
+            console.warn(`[Keep-Alive] Port ${port} is already in use — the health/portal endpoints are served by the other process.`);
         } else {
             console.error("[Keep-Alive] HTTP server error:", err);
         }

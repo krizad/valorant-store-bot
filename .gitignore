@@ -31,3 +31,10 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# AI / Dev Tool Caches (session-local, never commit)
+.mimosa/
+.v2c/
+.video_agent/
+.zcode/
+.claude/

@@ -3,8 +3,12 @@
 /**
  * Migration Script: Flat JSON files -> SQLite Database
  * Usage:
- *   node scripts/migrate-to-sqlite.js [--dry-run] [--db=data/database.sqlite]
+ *   node scripts/migrate-to-sqlite.js [--dry-run] [--db=data/database.sqlite] [--force]
  *   npm run migrate:sqlite
+ *
+ * The script refuses to run against a database that already contains users,
+ * because stale JSON files would silently overwrite newer SQLite rows.
+ * Pass --force to override (this WILL overwrite existing user data).
  */
 
 import "dotenv/config";
@@ -20,10 +24,13 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 
 const args = process.argv.slice(2);
 const isDryRun = args.includes("--dry-run");
+const isForce = args.includes("--force");
 const dbArg = args.find(a => a.startsWith("--db="));
 
 const config = loadConfig() || {};
-const dbPath = dbArg ? path.resolve(ROOT_DIR, dbArg.split("=")[1]) : path.resolve(ROOT_DIR, config.sqlitePath || "data/database.sqlite");
+const dbPath = dbArg
+    ? path.resolve(ROOT_DIR, dbArg.split("=").slice(1).join("=") || "data/database.sqlite")
+    : path.resolve(ROOT_DIR, config.sqlitePath || "data/database.sqlite");
 const usersDir = path.resolve(ROOT_DIR, "data/users");
 const shopCacheDir = path.resolve(ROOT_DIR, "data/shopCache");
 
@@ -64,6 +71,15 @@ if (isDryRun) {
 // 3. Perform Live Migration
 console.log("\n🚀 Starting migration...");
 const db = getDatabase(dbPath);
+
+// Safety guard: never overwrite newer SQLite data with stale JSON unless --force is passed
+const existingUsers = db.prepare("SELECT COUNT(*) AS n FROM users").get().n;
+if (existingUsers > 0 && !isForce) {
+    console.error("\n❌ Migration aborted: the target database already contains " + existingUsers + " user(s).");
+    console.error("   The JSON files in data/users/ may be stale and would overwrite them.");
+    console.error("   If you are sure, re-run with:  --force");
+    process.exit(1);
+}
 
 // Migrate Users
 const insertUser = db.prepare(`

@@ -151,7 +151,9 @@
     "LOGIN_MODAL_BUTTON": "📝 Enter SSID Directly",
     "LOGIN_PORTAL_TITLE": "VALORANT Authentication",
     "LOGIN_PORTAL_DESC": "Choose your preferred login method:\n\n**1. 🌐 Web Portal (Quick & Easy):**\nClick **[Login via Web Portal]({url})** to sign in through your browser.\n*↳ Best for immediate store inspection (Token expires after 1 hour).*\n\n**2. 📝 Enter SSID Directly (Recommended for permanent alerts ⭐):**\nClick **[Enter SSID Directly]** and paste your `ssid` cookie.\n*↳ Session lasts for months, auto-refreshes, and enables automatic daily store notifications at 07:00 AM!*\n\n💡 **Quick 1-Minute SSID Guide:**\n1. Open your browser where Riot is logged in and go to `https://auth.riotgames.com/userinfo`\n2. Click the **Cookie-Editor** extension (or our **Bot Extension**)\n3. Copy the value of `ssid` and click the button below to paste!",
-    "LOGIN_PORTAL_FOOTER": "Login link expires in 10 minutes • Kept strictly private to you"
+    "LOGIN_PORTAL_FOOTER": "Login link expires in 10 minutes • Kept strictly private to you",
+    "LOGIN_EXTENSION_TITLE": "🧩 Chrome Extension — 1-Click login (no DevTools needed)",
+    "LOGIN_EXTENSION_DESC": "Open the portal link above → **Extension** tab → **📥 Download Extension**.\nInstall: Extract ZIP ➔ `chrome://extensions` ➔ Developer mode ➔ **Load unpacked**.\nThen log in to Riot normally and press **Sync Now** on the portal — the extension sends your `ssid` for you."
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "\uD83D\uDCC8 Battlepass Calculation",

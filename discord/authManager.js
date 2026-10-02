@@ -1,39 +1,40 @@
-import {getAuthQueueItemStatus, Operations, queue2FACodeRedeem, queueUsernamePasswordLogin} from "../valorant/authQueue.js";
+import {getAuthQueueItemStatus, Operations, queue2FACodeRedeem, queueUsernamePasswordLogin, waitForAuthQueueResponse, MAX_AUTH_QUEUE_WAIT, queueTimedOut} from "../valorant/authQueue.js";
 import {actionRow, retryAuthButton, wait} from "../misc/util.js";
 import {getUser} from "../valorant/auth.js";
 import {authFailureMessage, basicEmbed, secondaryEmbed} from "./embed.js";
 import {s} from "../misc/languages.js";
 import config from "../misc/config.js";
+import crypto from "node:crypto";
 
 let failedOperations = [];
 
-export const waitForAuthQueueResponse = async (queueResponse, pollRate=300) => {
-    if(!queueResponse.inQueue) return queueResponse;
-    while(true) {
-        let response = await getAuthQueueItemStatus(queueResponse.c);
-        if(response.processed) return response.result;
-        await wait(pollRate);
-    }
-}
+export { waitForAuthQueueResponse };
 
 export const activeWaitForAuthQueueResponse = async (interaction, queueResponse, pollRate=config.loginQueuePollRate) => {
-    // like the above, but edits the interaction to keep the user updated
+    // like waitForAuthQueueResponse, but edits the interaction to keep the user updated
     let replied = false;
-    while(true) {
+    const deadline = Date.now() + MAX_AUTH_QUEUE_WAIT;
+    while(Date.now() < deadline) {
         let response = await getAuthQueueItemStatus(queueResponse.c);
         if(response.processed) return response.result;
 
         let embed;
         if(response.timestamp) embed = secondaryEmbed(s(interaction).error.QUEUE_WAIT.f({t: response.timestamp }));
         else embed = secondaryEmbed("Processing...");
-        if(replied) await interaction.editReply({embeds: [embed]});
-        else {
-            await interaction.followUp({embeds: [embed]});
-            replied = true;
+        try {
+            if(replied) await interaction.editReply({embeds: [embed]});
+            else {
+                await interaction.followUp({embeds: [embed]});
+                replied = true;
+            }
+        } catch(e) {
+            // interaction token expired — keep polling so the login itself isn't lost
         }
 
         await wait(pollRate);
     }
+    console.error("Timed out waiting for the auth queue!");
+    return queueTimedOut();
 }
 
 export const loginUsernamePassword = async (interaction, username, password, operationIndex=null) => {
@@ -49,8 +50,8 @@ export const loginUsernamePassword = async (interaction, username, password, ope
         });
 
         if(operationIndex !== null) {
-            const index = failedOperations.findIndex(o => o.index === operationIndex);
-            if(index > -1) failedOperations.splice(operationIndex, 1);
+            const index = failedOperations.findIndex(o => o.c === operationIndex);
+            if(index > -1) failedOperations.splice(index, 1);
         }
     } else if(login.error) {
         console.error(`${interaction.user.tag} login error`);
@@ -107,6 +108,8 @@ export const login2FA = async (interaction, code, operationIndex=null) => {
 }
 
 export const retryFailedOperation = async (interaction, index) => {
+    cleanupFailedOperations(); // drop expired operations (and their stored credentials) instead of leaking them
+
     const operation = failedOperations.find(o => o.c === index);
     if(!operation) return await interaction.followUp({
         embeds: [basicEmbed(s(interaction).error.AUTH_ERROR_RETRY_EXPIRED)],
@@ -128,7 +131,10 @@ export const cleanupFailedOperations = () => {
 }
 
 const generateOperationIndex = () => {
-    let index = Math.floor(Math.random() * 100000);
-    while(failedOperations.find(o => o.c === index)) index = Math.floor(Math.random() * 100000);
+    cleanupFailedOperations();
+
+    // unguessable: the index gates access to retrying stored credentials
+    let index = crypto.randomInt(100000);
+    while(failedOperations.find(o => o.c === index)) index = crypto.randomInt(100000);
     return index;
 }

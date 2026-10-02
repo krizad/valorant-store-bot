@@ -19,8 +19,9 @@ const lastEmojiFetch = {};
 const emojiCache = {};
 
 export const VPEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, VPEmojiName, VPEmojiFilename)) || s(interaction).info.PRICE;
-export const RadEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, RadEmojiName, RadEmojiFilename));
-export const KCEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, KCEmojiName, KCEmojiFilename));
+// plain-text fallbacks: without them embeds would show a literal "undefined" next to prices
+export const RadEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, RadEmojiName, RadEmojiFilename)) || "Radianite ";
+export const KCEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, KCEmojiName, KCEmojiFilename)) || "KC ";
 
 export const rarityEmoji = async (channel, name, icon) => emojiToString(await getOrCreateEmoji(channel, `${name}Rarity`, icon));
 
@@ -57,7 +58,8 @@ const getOrCreateEmoji = async (channel, name, filenameOrUrl) => {
         }
 
         if(client.shard) {
-            const results = await channel.client.shard.broadcastEval(findEmoji, { context: { name } });
+            // use the imported client — `channel` may be null here (e.g. uncached channels)
+            const results = await client.shard.broadcastEval(findEmoji, { context: { name } }).catch(() => []);
             const emoji = results.find(e => e);
             if(emoji) return addEmojiToCache(emoji);
         }

@@ -33,7 +33,7 @@ export const getUserJson = (id, account=null) => {
             settings: defaultSettings
         }
         saveUserJson(id, userJson);
-        return userJson.accounts[account || 1];
+        return userJson.accounts[(account || 1) - 1];
     }
 
     account = account || user.currentAccount || 1;
@@ -84,7 +84,7 @@ export const addUser = (user) => {
                 userJson.currentAccount = i + 1;
 
                 // copy over data from old account
-                user.alerts = removeDupeAlerts(oldUser.alerts.concat(userJson.accounts[i].alerts));
+                user.alerts = removeDupeAlerts((oldUser.alerts || []).concat(userJson.accounts[i].alerts || []));
                 user.lastFetchedData = oldUser.lastFetchedData;
                 user.lastNoticeSeen = oldUser.lastNoticeSeen;
                 user.lastSawEasterEgg = oldUser.lastSawEasterEgg;
@@ -167,6 +167,10 @@ export const getNumberOfAccounts = (id) => {
 export const switchAccount = (id, accountNumber) => {
     const userJson = readUserJson(id);
     if(!userJson) return;
+
+    // never persist an out-of-range index, it would corrupt the user's data
+    if(!Number.isInteger(accountNumber) || accountNumber < 1 || accountNumber > userJson.accounts.length) return;
+
     userJson.currentAccount = accountNumber;
     saveUserJson(id, userJson);
     return userJson.accounts[accountNumber - 1];
@@ -185,7 +189,12 @@ export const findTargetAccountIndex = (id, query) => {
     let index = userJson.accounts.findIndex(a => a.username === query || a.puuid === query);
     if(index !== -1) return index + 1;
 
-    return parseInt(query) || null;
+    const parsed = parseInt(query);
+    // only accept indexes that actually exist, otherwise /logout & /account could delete or
+    // switch to the wrong account (negative indexes splice from the end of the array!)
+    if(Number.isInteger(parsed) && parsed >= 1 && parsed <= userJson.accounts.length) return parsed;
+
+    return null;
 }
 
 export const removeDupeAccounts = (id, json=readUserJson(id)) => {
@@ -195,7 +204,7 @@ export const removeDupeAccounts = (id, json=readUserJson(id)) => {
     for(let i = 0; i < accounts.length; i++) {
         const existingAccount = newAccounts.find(a => a.puuid === accounts[i].puuid);
         if(!existingAccount) newAccounts.push(accounts[i]);
-        else existingAccount.alerts = removeDupeAlerts(existingAccount.alerts.concat(accounts[i].alerts));
+        else existingAccount.alerts = removeDupeAlerts((existingAccount.alerts || []).concat(accounts[i].alerts || []));
     }
 
     if(accounts.length !== newAccounts.length) {

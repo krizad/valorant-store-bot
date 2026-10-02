@@ -25,6 +25,11 @@ if(config) {
     transferUserDataFromOldUsersJson();
     autoMigrateIfEmpty();
     startBot();
+} else {
+    // without a token the bot can never start — don't leave a zombie process
+    // whose /health endpoint reports "alive" to uptime pingers
+    console.error("[Startup] No bot token configured, exiting. The keep-alive server will NOT report healthy.");
+    process.exit(1);
 }
 
 // 3. Connection Resiliency & Gateway Auto-Reconnect

@@ -3,6 +3,10 @@ import {loadConfig} from "./misc/config.js";
 
 const config = loadConfig();
 
+if (!config) {
+    process.exit(1);
+}
+
 const manager = new ShardingManager('./SkinPeek.js', {
     token: config.token,
     mode: "worker"
@@ -10,7 +14,8 @@ const manager = new ShardingManager('./SkinPeek.js', {
 
 let allShardsReady = false;
 const sendAllShardsReady = () => {
-    manager.broadcastEval((client) => client.skinPeekShardMessageReceived({type: "shardsReady"}));
+    manager.broadcastEval((client) => client.skinPeekShardMessageReceived({type: "shardsReady"}))
+        .catch((err) => console.error(`[Shards] shardsReady broadcast failed: ${err.message}`));
 }
 
 console.log("[Shards] Starting spawn");
@@ -21,9 +26,10 @@ manager.on("shardCreate", (shard) => {
         console.log(`[Shard ${shard.id}] Died`);
     });
 
-    shard.on("disconnect", (error, id) => {
-        console.log(`[Shard ${id}] Discord Websocket Disconnected`);
-        process.exit(1);
+    // Shard#disconnect fires on routine Discord gateway disconnects; the gateway
+    // reconnects on its own, so the manager process must stay alive here.
+    shard.on("disconnect", () => {
+        console.log(`[Shard ${shard.id}] Discord Websocket Disconnected`);
     });
 
     if(allShardsReady) {
@@ -36,7 +42,6 @@ manager.on("shardCreate", (shard) => {
         });
     }
 
-    shard.on("disconnect", () => console.log(`[Shard ${shard.id}] Disconnected`));
     shard.on("reconnecting", () => console.log(`[Shard ${shard.id}] Reconnecting`));
     shard.on("message", (message) => {
         // console.log(`[Shard ${shard.id}] Message: ${JSON.stringify(message)}`);
@@ -49,4 +54,6 @@ manager.spawn({
 }).then(() => {
     allShardsReady = true;
     sendAllShardsReady();
+}).catch((err) => {
+    console.error(`[Shards] Failed to start shards: ${err.message}`);
 });

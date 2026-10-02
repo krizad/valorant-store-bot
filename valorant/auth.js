@@ -5,15 +5,14 @@ import {
     extractTokensFromUri,
     tokenExpiry,
     decodeToken,
-    ensureUsersFolder, wait, getProxyManager
+    ensureUsersFolder, wait, getProxyManager, safeDump
 } from "../misc/util.js";
 import config from "../misc/config.js";
 import fs from "fs";
 import {client} from "../discord/bot.js";
 import {addUser, deleteUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser} from "./accountSwitcher.js";
 import {checkRateLimit, isRateLimited} from "../misc/rateLimit.js";
-import {queueCookiesLogin, queueUsernamePasswordLogin} from "./authQueue.js";
-import {waitForAuthQueueResponse} from "../discord/authManager.js";
+import {queueCookiesLogin, queueUsernamePasswordLogin, waitForAuthQueueResponse} from "./authQueue.js";
 import {isSqliteEnabled, dbListUserIds} from "../services/database.js";
 
 export class User {
@@ -130,7 +129,7 @@ export const redeemUsernamePassword = async (id, login, password) => {
         }),
         proxy: agent
     });
-    console.assert(req1.statusCode === 200, `Auth Request Cookies status code is ${req1.statusCode}!`, req1);
+    console.assert(req1.statusCode === 200, `Auth Request Cookies status code is ${req1.statusCode}!`, safeDump(req1));
 
     rateLimit = checkRateLimit(req1, "auth.riotgames.com");
     if(rateLimit) return {success: false, rateLimit: rateLimit};
@@ -155,7 +154,7 @@ export const redeemUsernamePassword = async (id, login, password) => {
         }),
         proxy: agent
     });
-    console.assert(req2.statusCode === 200, `Auth status code is ${req2.statusCode}!`, req2);
+    console.assert(req2.statusCode === 200, `Auth status code is ${req2.statusCode}!`, safeDump(req2));
 
     rateLimit = checkRateLimit(req2, "auth.riotgames.com")
     if(rateLimit) return {success: false, rateLimit: rateLimit};
@@ -203,6 +202,7 @@ export const redeem2FACode = async (id, code) => {
     if(rateLimit) return {success: false, rateLimit: rateLimit};
 
     let user = getUser(id);
+    if(!user) return {success: false}; // the temp 2FA entry is gone (restart or previous failure), a new login is needed
 
     const req = await fetch("https://auth.riotgames.com/api/v1/authorization", {
         method: "PUT",
@@ -217,11 +217,25 @@ export const redeem2FACode = async (id, code) => {
             'rememberDevice': true
         })
     });
-    console.assert(req.statusCode === 200, `2FA status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `2FA status code is ${req.statusCode}!`, safeDump(req));
 
     rateLimit = checkRateLimit(req, "auth.riotgames.com")
     if(rateLimit) return {success: false, rateLimit: rateLimit};
 
+    let json;
+    try {
+        json = JSON.parse(req.body);
+    } catch (e) {
+        json = {};
+    }
+
+    // check the response BEFORE deleting the temp entry, so a wrong code can simply be retried
+    if(json.error === "multifactor_attempt_failed" || json.type === "error") {
+        console.error("Authentication failure!", json);
+        return {success: false};
+    }
+
+    // response is valid: replace the temp waiting-2FA account with the real one
     deleteUser(id);
 
     user.auth = {
@@ -232,13 +246,7 @@ export const redeem2FACode = async (id, code) => {
         }
     };
 
-    const json = JSON.parse(req.body);
-    if(json.error === "multifactor_attempt_failed" || json.type === "error") {
-        console.error("Authentication failure!", json);
-        return {success: false};
-    }
-
-    user = await processAuthResponse(id, {login: user.auth.login, password: atob(user.auth.password || ""), cookies: user.auth.cookies}, json.response.parameters.uri, user);
+    user = await processAuthResponse(id, {login: user.auth.login, password: atob(user.auth.password || ""), cookies: user.auth.cookies}, json.response?.parameters?.uri, user);
 
     delete user.auth.waiting2FA;
     addUser(user);
@@ -305,7 +313,7 @@ export const getUserInfo = async (user) => {
             'Authorization': "Bearer " + user.auth.rso
         }
     });
-    console.assert(req.statusCode === 200, `User info status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `User info status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
     if(json.acct) return {
@@ -322,7 +330,7 @@ const getEntitlements = async (user) => {
             'Authorization': "Bearer " + user.auth.rso
         }
     });
-    console.assert(req.statusCode === 200, `Auth status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Auth status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
     return json.entitlements_token;
@@ -339,7 +347,7 @@ export const getRegion = async (user) => {
             'id_token': user.auth.idt,
         })
     });
-    console.assert(req.statusCode === 200, `PAS token status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `PAS token status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
     return json.affinities.live;
@@ -355,17 +363,20 @@ export const redeemCookies = async (id, cookies) => {
             cookie: cookies
         }
     });
-    console.assert(req.statusCode === 303, `Cookie Reauth status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 303, `Cookie Reauth status code is ${req.statusCode}!`, safeDump(req));
 
     rateLimit = checkRateLimit(req, "auth.riotgames.com");
     if(rateLimit) return {success: false, rateLimit: rateLimit};
 
     if(detectCloudflareBlock(req)) return {success: false, rateLimit: "cloudflare"};
 
+    if(!req.headers.location) return {success: false, statusCode: req.statusCode}; // transient server error, cookies may still be valid
     if(req.headers.location.startsWith("/login")) return {success: false}; // invalid cookies
 
+    // callers pass a raw cookie string ("ssid=...; sid=..."), parseSetCookie expects per-cookie strings
+    const cookieList = typeof cookies === "string" ? cookies.split(";").map(c => c.trim()).filter(Boolean) : cookies;
     cookies = {
-        ...parseSetCookie(cookies),
+        ...parseSetCookie(cookieList),
         ...parseSetCookie(req.headers['set-cookie'])
     }
 
@@ -410,7 +421,9 @@ export const refreshToken = async (id, account=null) => {
         if(response.inQueue) response = await waitForAuthQueueResponse(response);
     }
 
-    if(!response.success && !response.mfa && !response.rateLimit) deleteUserAuth(user);
+    // only wipe the stored auth on a definitive auth failure — not on transient
+    // errors (maintenance, server errors surfaced as statusCode, queue timeouts) or rate limits
+    if(!response.success && !response.mfa && !response.rateLimit && !response.maintenance && !response.statusCode && !response.timedOut) deleteUserAuth(user);
 
     return response;
 }
@@ -421,9 +434,6 @@ export const refreshToken = async (id, account=null) => {
 const getUserAgent = async () => {
     // temporary bypass for Riot adding hCaptcha (see github issue #93)
     return "ShooterGame/13 Windows/10.0.19043.1.256.64bit";
-    
-    if(!riotClientVersion) await fetchRiotClientVersion();
-    return `RiotClient/${riotClientVersion}.1234567 rso-auth (Windows;10;;Professional, x64)`;
 }
 
 const detectCloudflareBlock = (req) => {

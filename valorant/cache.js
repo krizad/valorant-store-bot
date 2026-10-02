@@ -1,4 +1,4 @@
-import { asyncReadJSONFile, fetch, isMaintenance, itemTypes, userRegion } from "../misc/util.js";
+import { asyncReadJSONFile, fetch, isMaintenance, itemTypes, safeDump, userRegion } from "../misc/util.js";
 import { authUser, getUser, getUserList } from "./auth.js";
 import config from "../misc/config.js";
 import fuzzysort from "fuzzysort";
@@ -23,10 +23,10 @@ export const getValorantVersion = async () => {
     console.log("Fetching current valorant version...");
 
     const req = await fetch("https://valorant-api.com/v1/version");
-    console.assert(req.statusCode === 200, `Valorant version status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant version status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant version data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant version data status code is ${json.status}!`, safeDump(json));
 
     return json.data;
 }
@@ -53,7 +53,14 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
     fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins, prices, bundles, rarities, buddies, sprays, cards, titles, battlepass }, null, 2));
 }
 
+// while a fetchData is in flight, other callers wait for it instead of
+// re-fetching the same lists in parallel (cache stampede on a cold cache)
+let inFlightFetch = null;
+
 export const fetchData = async (types = null, checkVersion = false) => {
+    if (inFlightFetch) await inFlightFetch;
+
+    const fetchPromise = (async () => {
     try {
         if (checkVersion || !gameVersion) {
             gameVersion = (await getValorantVersion()).manifestId;
@@ -87,16 +94,24 @@ export const fetchData = async (types = null, checkVersion = false) => {
         console.error("There was an error while trying to fetch skin data!");
         console.error(e);
     }
+    })();
+
+    inFlightFetch = fetchPromise;
+    try {
+        await fetchPromise;
+    } finally {
+        if (inFlightFetch === fetchPromise) inFlightFetch = null;
+    }
 }
 
 export const getSkinList = async (gameVersion) => {
     console.log("Fetching valorant skin list...");
 
     const req = await fetch("https://valorant-api.com/v1/weapons?language=all");
-    console.assert(req.statusCode === 200, `Valorant skins status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant skins status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant skins data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant skins data status code is ${json.status}!`, safeDump(json));
 
     skins = { version: gameVersion };
     weapons = {};
@@ -228,10 +243,10 @@ const getBundleList = async (gameVersion) => {
     console.log("Fetching valorant bundle list...");
 
     const req = await fetch("https://valorant-api.com/v1/bundles?language=all");
-    console.assert(req.statusCode === 200, `Valorant bundles status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant bundles status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant bundles data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant bundles data status code is ${json.status}!`, safeDump(json));
 
     bundles = { version: gameVersion };
     for (const bundle of json.data) {
@@ -281,17 +296,18 @@ const getRarities = async (gameVersion) => {
     console.log("Fetching skin rarities list...");
 
     const req = await fetch("https://valorant-api.com/v1/contenttiers/");
-    console.assert(req.statusCode === 200, `Valorant rarities status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant rarities status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant rarities data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant rarities data status code is ${json.status}!`, safeDump(json));
 
     rarities = { version: gameVersion };
     for (const rarity of json.data) {
         rarities[rarity.uuid] = {
             uuid: rarity.uuid,
             name: rarity.devName,
-            icon: rarity.displayIcon
+            icon: rarity.displayIcon,
+            color: rarity.gradientColor
         }
     }
 
@@ -304,10 +320,10 @@ export const getBuddies = async (gameVersion) => {
     console.log("Fetching gun buddies list...");
 
     const req = await fetch("https://valorant-api.com/v1/buddies?language=all");
-    console.assert(req.statusCode === 200, `Valorant buddies status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant buddies status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant buddies data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant buddies data status code is ${json.status}!`, safeDump(json));
 
     buddies = { version: gameVersion };
     for (const buddy of json.data) {
@@ -326,10 +342,10 @@ export const getCards = async (gameVersion) => {
     console.log("Fetching player cards list...");
 
     const req = await fetch("https://valorant-api.com/v1/playercards?language=all");
-    console.assert(req.statusCode === 200, `Valorant cards status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant cards status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant cards data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant cards data status code is ${json.status}!`, safeDump(json));
 
     cards = { version: gameVersion };
     for (const card of json.data) {
@@ -351,10 +367,10 @@ export const getSprays = async (gameVersion) => {
     console.log("Fetching sprays list...");
 
     const req = await fetch("https://valorant-api.com/v1/sprays?language=all");
-    console.assert(req.statusCode === 200, `Valorant sprays status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant sprays status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant sprays data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant sprays data status code is ${json.status}!`, safeDump(json));
 
     sprays = { version: gameVersion };
     for (const spray of json.data) {
@@ -372,10 +388,10 @@ export const getTitles = async (gameVersion) => {
     console.log("Fetching player titles list...");
 
     const req = await fetch("https://valorant-api.com/v1/playertitles?language=all");
-    console.assert(req.statusCode === 200, `Valorant titles status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant titles status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant titles data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant titles data status code is ${json.status}!`, safeDump(json));
 
     titles = { version: gameVersion };
     for (const title of json.data) {
@@ -399,17 +415,17 @@ export const fetchBattlepassInfo = async (gameVersion) => {
 
     // fetch seasons data (current act end date)
     const req1 = await fetch("https://valorant-api.com/v1/seasons");
-    console.assert(req1.statusCode === 200, `Valorant seasons status code is ${req1.statusCode}!`, req1);
+    console.assert(req1.statusCode === 200, `Valorant seasons status code is ${req1.statusCode}!`, safeDump(req1));
 
     const seasons_json = JSON.parse(req1.body);
-    console.assert(seasons_json.status === 200, `Valorant seasons data status code is ${seasons_json.status}!`, seasons_json);
+    console.assert(seasons_json.status === 200, `Valorant seasons data status code is ${seasons_json.status}!`, safeDump(seasons_json));
 
     // fetch battlepass data (battlepass uuid)
     const req2 = await fetch("https://valorant-api.com/v1/contracts");
-    console.assert(req2.statusCode === 200, `Valorant contracts status code is ${req2.statusCode}!`, req2);
+    console.assert(req2.statusCode === 200, `Valorant contracts status code is ${req2.statusCode}!`, safeDump(req2));
 
     const contracts_json = JSON.parse(req2.body);
-    console.assert(contracts_json.status === 200, `Valorant contracts data status code is ${contracts_json.status}!`, contracts_json);
+    console.assert(contracts_json.status === 200, `Valorant contracts data status code is ${contracts_json.status}!`, safeDump(contracts_json));
 
     // we need to find the "current battlepass season" i.e. the last season to have a battlepass.
     // it's not always the current season, since between acts there is sometimes a period during
@@ -543,7 +559,7 @@ export const searchSkin = async (query, locale, limit = 20, threshold = -5000) =
 
 export const getBundle = async (uuid) => {
     await fetchData([bundles]);
-    return bundles[uuid];
+    return bundles?.[uuid];
 }
 
 export const getAllBundles = () => {
@@ -568,22 +584,22 @@ export const searchBundle = async (query, locale, limit = 20, threshold = -1000)
 
 export const getBuddy = async (uuid) => {
     if (!buddies) await fetchData([buddies]);
-    return buddies[uuid];
+    return buddies?.[uuid];
 }
 
 export const getSpray = async (uuid) => {
     if (!sprays) await fetchData([sprays]);
-    return sprays[uuid];
+    return sprays?.[uuid];
 }
 
 export const getCard = async (uuid) => {
     if (!cards) await fetchData([cards]);
-    return cards[uuid];
+    return cards?.[uuid];
 }
 
 export const getTitle = async (uuid) => {
     if (!titles) await fetchData([titles]);
-    return titles[uuid];
+    return titles?.[uuid];
 }
 
 export const getBattlepassInfo = async () => {

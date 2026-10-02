@@ -1,6 +1,6 @@
 
 import {authUser, deleteUserAuth, getUser} from "./auth.js";
-import {fetch, isMaintenance, riotClientHeaders, userRegion} from "../misc/util.js";
+import {fetch, isMaintenance, riotClientHeaders, safeDump, userRegion} from "../misc/util.js";
 import {getBattlepassInfo, getBuddy, getCard, getSkin, getSpray, getValorantVersion} from "./cache.js";
 import {renderBattlepass} from "../discord/embed.js";
 import {getEntitlements} from "./inventory.js";
@@ -14,10 +14,10 @@ const getWeeklies = async () => {
     console.log("Fetching mission data...");
 
     const req = await fetch("https://valorant-api.com/v1/missions");
-    console.assert(req.statusCode === 200, `Valorant mission status code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant mission status code is ${req.statusCode}!`, safeDump(req));
 
     const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant mission data status code is ${json.status}!`, json);
+    console.assert(json.status === 200, `Valorant mission data status code is ${json.status}!`, safeDump(json));
 
     const now = Date.now();
     let weeklyData = {};
@@ -133,7 +133,7 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
         }
     });
 
-    console.assert(req.statusCode === 200, `Valorant battlepass code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant battlepass code is ${req.statusCode}!`, safeDump(req));
 
     let json;
     try {
@@ -164,7 +164,7 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
         totalProgressionEarned: contract.ContractProgression.TotalProgressionEarned,
         missions: {
             missionArray: json.Missions,
-            weeklyCheckpoint: json.MissionMetadata.WeeklyCheckpoint
+            weeklyCheckpoint: json.MissionMetadata?.WeeklyCheckpoint
         }
     }
 
@@ -177,9 +177,11 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
     // Calculate
     const season_end = new Date(battlepassInfo.end);
     const season_now = Date.now();
-    const season_left = Math.abs(season_end - season_now);
+    const season_left = Math.max(0, season_end - season_now); // after the act ends this is 0, not negative
     const season_days_left = Math.floor(season_left / (1000 * 60 * 60 * 24)); // 1000 * 60 * 60 * 24 is one day in milliseconds
-    const season_weeks_left = season_days_left / 7;
+    // keep the XP-per-day math from dividing by zero when the act has ended or ends today
+    const divisorDays = Math.max(1, season_days_left);
+    const season_weeks_left = divisorDays / 7;
 
     let totalxp = contractData.totalProgressionEarned;
     let totalxpneeded = 0;
@@ -210,9 +212,9 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
         normalneeded: Math.max(0, Math.ceil(totalxpneeded / average_unrated_xp)).toLocaleString(),
         spikerushneededwithweeklies: Math.max(0, Math.ceil((totalxpneeded - weeklyxp) / spikerush_xp)).toLocaleString(),
         normalneededwithweeklies: Math.max(0, Math.ceil((totalxpneeded - weeklyxp) / average_unrated_xp)).toLocaleString(),
-        dailyxpneeded: Math.max(0, Math.ceil(totalxpneeded / season_days_left)).toLocaleString(),
+        dailyxpneeded: Math.max(0, Math.ceil(totalxpneeded / divisorDays)).toLocaleString(),
         weeklyxpneeded: Math.max(0, Math.ceil(totalxpneeded / season_weeks_left)).toLocaleString(),
-        dailyxpneededwithweeklies: Math.max(0, Math.ceil((totalxpneeded - weeklyxp) / season_days_left)).toLocaleString(),
+        dailyxpneededwithweeklies: Math.max(0, Math.ceil((totalxpneeded - weeklyxp) / divisorDays)).toLocaleString(),
         weeklyxpneededwithweeklies: Math.max(0, Math.ceil((totalxpneeded - weeklyxp) / season_weeks_left)).toLocaleString()
     };
 };
@@ -258,7 +260,8 @@ const getBattlepassPurchase = async (id) => {
     console.log(`Fetching battlepass purchases for ${user.username}...`);
 
     const data = await getEntitlements(user, "f85cb6f7-33e5-4dc8-b609-ec7212301948", "battlepass");
-    if(!data.success) return false;
+    // propagate the failure so the caller can show the real error instead of "not purchased"
+    if(!data.success) return data;
 
     const battlepassInfo = await getBattlepassInfo();
 

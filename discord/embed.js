@@ -2,6 +2,7 @@ import {
     getBuddy,
     getBundle,
     getCard,
+    getRarity,
     getSkin,
     getSkinFromSkinUuid,
     getSpray,
@@ -30,6 +31,21 @@ import {isThereANM} from "../valorant/shopManager.js";
 export const VAL_COLOR_1 = 0xFD4553;
 export const VAL_COLOR_2 = 0x202225;
 export const VAL_COLOR_3 = 0xEAEEB2;
+
+// resolve a skin's content-tier uuid to a usable hex color for the canvas banner
+const getRarityColor = async (rarity) => {
+    const FALLBACK = "#ff4655";
+    try {
+        if(!rarity) return FALLBACK;
+        const tier = typeof rarity === "string" ? await getRarity(rarity) : rarity;
+        const raw = tier?.color || tier?.gradientColor;
+        if(!raw) return FALLBACK;
+        const hex = String(raw).match(/#([0-9a-f]{6})/i); // gradientColor can be a css gradient
+        return hex ? hex[0] : FALLBACK;
+    } catch (e) {
+        return FALLBACK;
+    }
+}
 
 const thumbnails = [
     "https://media.valorant-api.com/sprays/290565e7-4540-5764-31da-758846dc2a5a/fulltransparenticon.png",
@@ -118,7 +134,7 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
         const json = readUserJson(otherId);
 
         let usernameText = otherUserMention;
-        if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+        if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
 
         headerText = s(interaction).info.SHOP_HEADER.f({u: usernameText, t: shop.expires});
     }
@@ -126,6 +142,7 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
 
     const embeds = [headerEmbed(headerText)];
     const files = [];
+    let bannerGenerated = false;
 
     if (config.useStoreBanner) {
         const skinsData = [];
@@ -137,7 +154,7 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
                 name: l(skin.names, interaction) || skin.name || "Unknown Skin",
                 icon: skin.icon,
                 price: price,
-                tierColor: skin.rarity?.color || "#ff4655",
+                tierColor: await getRarityColor(skin.rarity),
                 uuid: skin.uuid,
                 levels: skin.levels,
                 chromas: skin.chromas
@@ -149,6 +166,7 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
             if (bannerBuffer) {
                 files.push(new AttachmentBuilder(bannerBuffer, { name: "store-banner.png" }));
                 embeds[0].image = { url: "attachment://store-banner.png" };
+                bannerGenerated = true;
             }
         } catch (e) {
             console.error("[Canvas] Banner generation failed, falling back to embeds:", e);
@@ -156,9 +174,10 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
     }
 
     // Default or fallback: display individual cards for each skin offer
-    if (embeds.length === 1) {
+    if (!bannerGenerated) {
         for(const uuid of shop.offers) {
             const skin = await getSkin(uuid);
+            if (!skin) continue;
             const price = isDefaultSkin(skin) ? "0" : skin.price;
             const embed = await skinEmbed(skin.uuid, price, interaction, VPemoji);
             if (embed) embeds.push(embed);
@@ -215,7 +234,7 @@ export const renderAccessoryOffers = async (shop, interaction, valorantUser, KCe
         const json = readUserJson(id);
 
         let usernameText = otherUserMention;
-        if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+        if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
 
         headerText = s(interaction).info.ACCESSORY_SHOP_HEADER.f({ u: usernameText, t: shop.accessory.expires });
     }
@@ -306,6 +325,14 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
 
     if(bundles.length === 1) {
         const bundle = await getBundle(bundles[0].uuid);
+        if(!bundle) return {
+            embeds: [{
+                title: s(interaction).info.BUNDLES_HEADER,
+                description: s(interaction).info.BUNDLES_HEADER_DESC,
+                color: VAL_COLOR_1
+            }],
+            components: []
+        };
 
         const renderedBundle = await renderBundle(bundle, interaction, VPemoji, false);
         const titleEmbed = renderedBundle.embeds[0];
@@ -325,6 +352,7 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
 
     for(const bundleData of bundles) {
         const bundle = await getBundle(bundleData.uuid);
+        if(!bundle) continue;
 
         const subName = bundle.subNames ? l(bundle.subNames, interaction) + "\n" : "";
         const slantedDescription = bundle.descriptions ? "*" + l(bundle.descriptions, interaction) + "*\n" : "";
@@ -343,9 +371,10 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
         }
     }
 
+    // an ActionRow with zero components is rejected by the Discord API
     return {
         embeds: embeds,
-        components: [new ActionRowBuilder().addComponents(...buttons)]
+        components: buttons.length > 0 ? [new ActionRowBuilder().addComponents(...buttons)] : []
     };
 }
 
@@ -400,6 +429,7 @@ export const renderNightMarket = async (market, interaction, valorantUser, emoji
 
     for(const offer of market.offers) {
         const skin = await getSkin(offer.uuid);
+        if(!skin) continue;
 
         const embed = await skinEmbed(skin.uuid, skin.price, interaction, emoji);
         embed.description = `${emoji} **${offer.nmPrice}**\n${emoji} ~~${offer.realPrice}~~ (-${offer.percent}%)`;
@@ -447,9 +477,9 @@ export const renderBattlepass = async (battlepass, targetlevel, interaction, tar
         let headerText;
         if(forOtherUser) {
             const json = readUserJson(targetId);
-    
+
             let usernameText = otherUserMention;
-            if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+            if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
 
             headerText = s(interaction).battlepass.TIER_HEADER.f({u: usernameText})
         }
@@ -531,9 +561,7 @@ export const renderBattlepass = async (battlepass, targetlevel, interaction, tar
                     "inline": true
                 },
             ],
-            thumbnail: {
-                url: battlepass.nextReward.rewardIcon,
-            },
+            ...(battlepass.nextReward.rewardIcon ? { thumbnail: { url: battlepass.nextReward.rewardIcon } } : {})
         });
     } else {
         embeds.push({
@@ -602,7 +630,15 @@ export const skinEmbed = async (uuid, price, interactionOrId, VPemojiString, cha
       '411e4a55-4e59-7757-41f0-86a53f101bb5': 0xf9d563
     };
 
-    const color = colorMap[skin.rarity] || '000000'; // default to black
+    // the color must be an integer — a string is rejected by the Discord API
+    const color = colorMap[skin?.rarity] || VAL_COLOR_2;
+
+    if(!skin) return {
+        title: uuid,
+        description: priceDescription(VPemojiString, price),
+        color: color
+    };
+
     return {
         title: await skinNameAndEmoji(skin, interactionOrId.channel || channel, interactionOrId),
         url: config.linkItemImage ? skin.icon : null,
@@ -743,7 +779,7 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, {loadout,
         usernameText = `<@${id}>`;
 
         const json = readUserJson(id);
-        if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+        if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
     }
     else usernameText = user.username;
 
@@ -819,7 +855,7 @@ export const skinCollectionPageEmbed = async (interaction, id, user, {loadout, f
         usernameText = `<@${id}>`;
 
         const json = readUserJson(id);
-        if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+        if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
     }
     else usernameText = user.username;
 
@@ -856,7 +892,7 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
         usernameText = `<@${id}>`;
 
         const json = readUserJson(id);
-        if(json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
+        if(json?.accounts?.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({n: json.currentAccount});
     }
     else usernameText = user.username;
 
@@ -1028,7 +1064,9 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
             "url": account.account.card?.small
         }
     }];
-    for (let i = 0; i < matchHistoryData.data.length; i++) {
+    // Discord caps messages at 10 embeds (1 header + 9 matches)
+    const maxMatches = 9 - embeds.length + 1;
+    for (let i = 0; i < Math.min(matchHistoryData.data.length, maxMatches); i++) {
         const embed = competitiveMatchEmbed(interaction, matchHistoryData.data[i])
         embeds.push(embed);
     }
@@ -1312,9 +1350,14 @@ export const allStatsEmbed = async (interaction, stats, pageIndex=0) => {
     const embeds = [basicEmbed(s(interaction).info.STATS_HEADER.f({c: stats.shopsIncluded, p: pageIndex + 1, t: maxPages}))];
     for(const uuid of skinsToDisplay) {
         const skin = await getSkin(uuid);
+        if(!skin) continue; // stats can outlive the skin cache across game versions
         const statsForSkin = getStatsFor(uuid);
         embeds.push(await statsForSkinEmbed(skin, statsForSkin, interaction));
     }
+
+    if(embeds.length === 1) return {
+        embeds: [basicEmbed(config.trackStoreStats ? s(interaction).error.EMPTY_STATS : s(interaction).error.STATS_DISABLED)]
+    };
 
     return {
         embeds: embeds,
@@ -1526,6 +1569,17 @@ export const helpEmbed = (interaction) => {
                           "` /update ` — Refresh username and region in the bot\n" +
                           "` /forget [account] ` — Permanently remove account from the bot\n" +
                           "` /logout [account] ` — Log out of account",
+                    inline: false
+                },
+                {
+                    name: isThai ? "🧩 Chrome Extension (1-Click SSID)" : "🧩 Chrome Extension (1-Click SSID)",
+                    value: isThai
+                        ? "โหลดได้จาก **Web Portal** (สั่ง `/login` แล้วเปิดลิงก์) → แท็บ **Extension**\n" +
+                          "ติดตั้ง: Extract ZIP ➔ `chrome://extensions` ➔ Developer mode ➔ Load unpacked\n" +
+                          "ใช้งาน: ล็อกอิน Riot ตามปกติ แล้วกด **Sync Now** ในหน้า portal — ดึง `ssid` ให้เอง ไม่ต้องเปิด DevTools"
+                        : "Download from the **Web Portal** (run `/login` and open the link) → **Extension** tab\n" +
+                          "Install: Extract ZIP ➔ `chrome://extensions` ➔ Developer mode ➔ Load unpacked\n" +
+                          "Usage: log in to Riot normally, then press **Sync Now** on the portal — grabs your `ssid` for you, no DevTools",
                     inline: false
                 },
                 {

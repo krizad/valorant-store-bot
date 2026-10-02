@@ -1,6 +1,7 @@
 import {checkAlerts, sendAlert, sendCredentialsExpired, sendDailyShop} from "../discord/alerts.js";
 import {loadConfig} from "./config.js";
-import {client, destroyTasks, scheduleTasks} from "../discord/bot.js";
+import {client} from "../discord/bot.js";
+import {destroyTasks, scheduleTasks} from "../discord/tasks.js";
 import {addMessagesToLog, localLog} from "./logger.js";
 import {loadSkinsJSON} from "../valorant/cache.js";
 import {handleMQRequest, handleMQResponse} from "./multiqueue.js";
@@ -29,7 +30,8 @@ export const sendShardMessage = async (message) => {
 
 const receiveShardMessage = async (message) => {
     //oldLog(`Received shard message ${JSON.stringify(message).substring(0, 100)}`);
-    switch(message.type) {
+    try {
+        switch(message.type) {
         case "shardsReady":
             // also received when a shard dies and respawns
             if(allShardsReadyPromise === null) return;
@@ -70,6 +72,10 @@ const receiveShardMessage = async (message) => {
         case "processExit":
             process.exit();
             break;
+        }
+    } catch (e) {
+        // a failing handler must not reject the sender's broadcastEval
+        console.error(`Error handling shard message "${message?.type}":`, e);
     }
 };
 

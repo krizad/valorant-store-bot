@@ -14,6 +14,21 @@ if (!fs.existsSync(assetsDir)) {
 
 console.log("[PackageExtension] Building valorant-store-helper.zip...");
 
+// must be initialized before the try block below: the fallback zip builder
+// runs in the catch and reads this table (a const later in the file would be a TDZ error)
+const crcTable = (() => {
+    let c;
+    const table = [];
+    for (let n = 0; n < 256; n++) {
+        c = n;
+        for (let k = 0; k < 8; k++) {
+            c = ((c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1));
+        }
+        table[n] = c;
+    }
+    return table;
+})();
+
 try {
     // Try system zip command first
     execSync(`cd "${extDir}" && zip -r "${zipOut}" . -x "*.DS_Store"`, { stdio: "pipe" });
@@ -126,16 +141,3 @@ function crc32(buf) {
     }
     return (crc ^ (-1)) >>> 0;
 }
-
-const crcTable = (() => {
-    let c;
-    const table = [];
-    for (let n = 0; n < 256; n++) {
-        c = n;
-        for (let k = 0; k < 8; k++) {
-            c = ((c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1));
-        }
-        table[n] = c;
-    }
-    return table;
-})();

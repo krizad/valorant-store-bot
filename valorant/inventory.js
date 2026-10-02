@@ -1,4 +1,4 @@
-import {fetch, isMaintenance, riotClientHeaders, userRegion, WeaponTypeUuid} from "../misc/util.js";
+import {fetch, isMaintenance, riotClientHeaders, safeDump, userRegion, WeaponTypeUuid} from "../misc/util.js";
 import {authUser, deleteUserAuth, getUser} from "./auth.js";
 import {authFailureMessage, basicEmbed, skinCollectionSingleEmbed, collectionOfWeaponEmbed} from "../discord/embed.js";
 import config from "../misc/config.js";
@@ -15,14 +15,25 @@ export const getEntitlements = async (user, itemTypeId, itemType="item") => {
         }
     });
 
-    console.assert(req.statusCode === 200, `Valorant ${itemType} entitlements code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant ${itemType} entitlements code is ${req.statusCode}!`, safeDump(req));
 
-    const json = JSON.parse(req.body);
-    if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false };
-    } else if (isMaintenance(json))
-        return { success: false, maintenance: true };
+    let json;
+    try {
+        json = JSON.parse(req.body);
+    } catch (e) {
+        return { success: false, statusCode: req.statusCode };
+    }
+
+    if (req.statusCode !== 200) {
+        if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+            deleteUserAuth(user);
+            return { success: false };
+        } else if (isMaintenance(json))
+            return { success: false, maintenance: true };
+
+        // don't report success for 429/403/5xx error bodies — callers expect real entitlements here
+        return { success: false, statusCode: req.statusCode, error: json };
+    }
 
     return {
         success: true,
@@ -48,6 +59,11 @@ export const getSkins = async (user) => {
 
     const authResult = await authUser(user.id);
     if(!authResult.success) return authResult;
+
+    // authUser may have refreshed the tokens on disk — reload so we don't send an expired one
+    // (sending a stale token makes Riot return 400, which deletes the freshly refreshed auth)
+    user = getUser(user.id);
+    if(!user) return {success: false};
 
     const data = await getEntitlements(user, "e7c63390-eda7-46e0-bb7a-a6abdacd2433", "skins");
     if(!data.success) return data;
@@ -97,7 +113,7 @@ export const getLoadout = async (user, account) => {
         }
     });
 
-    console.assert(req.statusCode === 200, `Valorant loadout fetch code is ${req.statusCode}!`, req);
+    console.assert(req.statusCode === 200, `Valorant loadout fetch code is ${req.statusCode}!`, safeDump(req));
 
     let json;
     try {
@@ -124,7 +140,7 @@ export const getLoadout = async (user, account) => {
         }
     });
 
-    console.assert(req2.statusCode === 200, `Valorant favorites fetch code is ${req2.statusCode}!`, req2);
+    console.assert(req2.statusCode === 200, `Valorant favorites fetch code is ${req2.statusCode}!`, safeDump(req2));
 
     let json2 = { FavoritedContent: {} };
     if (req2.statusCode === 200) {

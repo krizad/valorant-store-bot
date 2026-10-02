@@ -89,7 +89,7 @@ const importLanguage = (language) => {
         languageHandler[category] = new Proxy(languageStrings[category], {
             get: (target, prop) => {
                 if(prop in target) return target[prop];
-                return languages[DEFAULT_LANG][category][prop] || prop;
+                return languages[DEFAULT_LANG][category]?.[prop] || prop;
             }
         });
     }
@@ -107,7 +107,8 @@ String.prototype.f = function(args, interactionOrId=null, hideName=true) {
     args = hideUsername(args, interactionOrId, hideName);
     let str = this;
     for(let i in args)
-        str = str.replaceAll(`{${i}}`, args[i]);
+        // function replacement so "$&"/"$'" in values are treated as literal text
+        str = str.replaceAll(`{${i}}`, () => args[i]);
     return str;
 }
 

@@ -9,19 +9,26 @@ let overallStats = {
     shopsIncluded: 0,
     items: {}
 };
+let statsLoaded = false;
 
 export const loadStats = (filename="data/stats.json") => {
-    if(!config.trackStoreStats) return;
+    if(!config.trackStoreStats || statsLoaded) return;
     try {
         const obj = JSON.parse(fs.readFileSync(filename).toString());
 
-        if(!obj.fileVersion) transferStatsFromV1(obj);
-        else stats = obj;
-
-        saveStats(filename);
+        if(!obj.fileVersion) {
+            transferStatsFromV1(obj);
+            saveStats(filename); // persist the v1 -> v2 migration
+        } else {
+            stats = obj;
+        }
 
         calculateOverallStats();
-    } catch(e) {}
+    } catch(e) {
+        if(!e.code || e.code !== "ENOENT") console.error("Failed loading data/stats.json! Existing stats will be lost on the next write.", e.message);
+    } finally {
+        statsLoaded = true;
+    }
 }
 
 const saveStats = (filename="data/stats.json") => {
@@ -111,13 +118,15 @@ export const addStore = (puuid, items) => {
 const cleanupStats = () => {
     if(!config.statsExpirationDays) return;
 
+    let deleted = false;
     for(const dateString in stats.stats) {
         if(daysAgo(dateString) > config.statsExpirationDays) {
             delete stats.stats[dateString];
+            deleted = true;
         }
     }
 
-    saveStats();
+    if(deleted) saveStats();
 }
 
 const formatDate = (date) => {

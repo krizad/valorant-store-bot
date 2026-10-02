@@ -7,7 +7,7 @@ import {
     getAuthQueueItemStatus,
     queue2FACodeRedeem,
     queueCookiesLogin, queueNullOperation,
-    queueUsernamePasswordLogin
+    queueRedirectUrlLogin, queueUsernamePasswordLogin
 } from "../valorant/authQueue.js";
 import config from "./config.js";
 
@@ -62,11 +62,21 @@ export const handleMQResponse = async (message) => {
 
 // =====================
 
+const MQ_REQUEST_TIMEOUT = 60 * 1000; // don't let a dead shard hang the requester forever
+
 const mqSendMessage  = async (type, params={}) => {
     return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(`Multiqueue request "${type}" timed out`);
+        }, MQ_REQUEST_TIMEOUT);
+
         sendMQRequest(type, params, (message) => {
+            clearTimeout(timeout);
             if(message.error) reject(message.error);
             else resolve(message.params);
+        }).catch((e) => {
+            clearTimeout(timeout);
+            reject(e);
         });
     });
 }
@@ -75,6 +85,7 @@ export const mqGetShop = async (id, account=null) => await mqSendMessage("getSho
 export const mqLoginUsernamePass = async (id, username, password) => await mqSendMessage("loginUsernamePass", {id, username, password});
 export const mqLogin2fa = async (id, code) => await mqSendMessage("login2fa", {id, code});
 export const mqLoginCookies = async (id, cookies) => await mqSendMessage("loginCookies", {id, cookies});
+export const mqLoginRedirect = async (id, redirectUrl) => await mqSendMessage("loginRedirect", {id, redirectUrl});
 export const mqNullOperation = async (timeout) => await mqSendMessage("nullOperation", {timeout});
 export const mqGetAuthQueueItemStatus = async (c) => await mqSendMessage("getAuthQueueItemStatus", {c});
 
@@ -83,42 +94,58 @@ const mqProcessRequest = async ({mqid, mqtype, params}) => {
     console.log("Processing MQ request", mqid, mqtype, JSON.stringify(params).substring(0, 200));
 
     let response;
-    switch(mqtype) {
-        case "getShop": {
-            const {id, account} = params;
-            response = await getShop(id, account);
-            break;
-        }
+    try {
+        switch(mqtype) {
+            case "getShop": {
+                const {id, account} = params;
+                response = await getShop(id, account);
+                break;
+            }
 
-        case "loginUsernamePass": {
-            const {id, username, password} = params;
-            response = await queueUsernamePasswordLogin(id, username, password);
-            break;
-        }
+            case "loginUsernamePass": {
+                const {id, username, password} = params;
+                response = await queueUsernamePasswordLogin(id, username, password);
+                break;
+            }
 
-        case "login2fa": {
-            const {id, code} = params;
-            response = await queue2FACodeRedeem(id, code);
-            break;
-        }
+            case "login2fa": {
+                const {id, code} = params;
+                response = await queue2FACodeRedeem(id, code);
+                break;
+            }
 
-        case "loginCookies": {
-            const {id, cookies} = params;
-            response = await queueCookiesLogin(id, cookies);
-            break;
-        }
+            case "loginCookies": {
+                const {id, cookies} = params;
+                response = await queueCookiesLogin(id, cookies);
+                break;
+            }
 
-        case "nullOperation": {
-            const {timeout} = params;
-            response = await queueNullOperation(timeout);
-            break;
-        }
+            case "loginRedirect": {
+                const {id, redirectUrl} = params;
+                response = await queueRedirectUrlLogin(id, redirectUrl);
+                break;
+            }
 
-        case "getAuthQueueItemStatus": {
-            const {c} = params;
-            response = await getAuthQueueItemStatus(c);
-            break;
+            case "nullOperation": {
+                const {timeout} = params;
+                response = await queueNullOperation(timeout);
+                break;
+            }
+
+            case "getAuthQueueItemStatus": {
+                const {c} = params;
+                response = await getAuthQueueItemStatus(c);
+                break;
+            }
+
+            default:
+                response = { error: `Unknown MQ request type "${mqtype}"` };
         }
+    } catch (e) {
+        // always respond, otherwise the requesting shard hangs forever and the callback leaks
+        console.error(`Error processing MQ request ${mqid} (${mqtype})!`);
+        console.error(e);
+        response = { error: e?.message || String(e) };
     }
 
     await sendMQResponse(mqid, response);

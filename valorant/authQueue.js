@@ -5,6 +5,7 @@ import {
     mqGetAuthQueueItemStatus,
     mqLogin2fa,
     mqLoginCookies,
+    mqLoginRedirect,
     mqLoginUsernamePass, mqNullOperation,
     useMultiqueue
 } from "../misc/multiqueue.js";
@@ -24,6 +25,22 @@ let processingCount = 0;
 
 let authQueueInterval;
 let lastQueueProcess = 0; // timestamp
+
+export const MAX_AUTH_QUEUE_WAIT = 10 * 60 * 1000; // give up after 10 min — Discord interaction tokens die at 15 anyway
+export const queueTimedOut = () => ({success: false, timedOut: true});
+
+// pure queue polling (no Discord dependencies) — used by auth flows and the web portal
+export const waitForAuthQueueResponse = async (queueResponse, pollRate=300) => {
+    if(!queueResponse.inQueue) return queueResponse;
+    const deadline = Date.now() + MAX_AUTH_QUEUE_WAIT;
+    while(Date.now() < deadline) {
+        let response = await getAuthQueueItemStatus(queueResponse.c);
+        if(response.processed) return response.result;
+        await wait(pollRate);
+    }
+    console.error("Timed out waiting for the auth queue!");
+    return queueTimedOut();
+}
 
 export const startAuthQueue = () => {
     clearInterval(authQueueInterval);
@@ -77,7 +94,7 @@ export const queueCookiesLogin = async (id, cookies) => {
 
 export const queueRedirectUrlLogin = async (id, redirectUrl) => {
     if(!config.useLoginQueue) return await redeemRedirectUrl(id, redirectUrl);
-    if(useMultiqueue()) return {inQueue: false, ...await redeemRedirectUrl(id, redirectUrl)};
+    if(useMultiqueue()) return {inQueue: false, ...await mqLoginRedirect(id, redirectUrl)};
 
     const c = queueCounter++;
     queue.push({
@@ -91,7 +108,10 @@ export const queueRedirectUrlLogin = async (id, redirectUrl) => {
 }
 
 export const queueNullOperation = async (timeout) => {  // used for stress-testing the auth queue
-    if(!config.useLoginQueue) await wait(timeout);
+    if(!config.useLoginQueue) {
+        await wait(timeout);
+        return {success: true};
+    }
     if(useMultiqueue()) return {inQueue: false, ...await mqNullOperation(timeout)}
 
     const c = queueCounter++;
@@ -109,6 +129,9 @@ export const processAuthQueue = async () => {
     lastQueueProcess = Date.now();
     if(!config.useLoginQueue || !queue.length) return;
     if(useMultiqueue()) return;
+    // never run two logins concurrently — the interval fires every few seconds and
+    // Riot logins often take longer than that, which is exactly the storm the queue prevents
+    if(processingCount > 0) return;
 
     const item = queue.shift();
     console.log(`Processing auth queue item "${item.operation}" for ${item.id} (c=${item.c}, left=${queue.length})`);
@@ -145,6 +168,9 @@ export const processAuthQueue = async () => {
 
     console.log(`Finished processing auth queue item "${item.operation}" for ${item.id} (c=${item.c})`);
     processingCount--;
+
+    // keep draining the queue without waiting for the next interval tick
+    if(queue.length) processAuthQueue().catch(() => {});
 }
 
 export const getAuthQueueItemStatus = async (c) => {

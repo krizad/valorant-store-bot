@@ -60,9 +60,9 @@ export const loadConfig = (filename="config.json") => {
         console.error("If you don't want to see this notification again, set HDevTokenAlert to false in config.json");
     }
 
-    // backwards compatibility
-    loadedConfig.fetchSkinPrices = loadedConfig.showSkinPrices;
-    loadedConfig.fetchSkinRarities = loadedConfig.showSkinRarities;
+    // backwards compatibility — don't clobber explicitly-set new keys with undefined legacy values
+    loadedConfig.fetchSkinPrices = loadedConfig.fetchSkinPrices ?? loadedConfig.showSkinPrices;
+    loadedConfig.fetchSkinRarities = loadedConfig.fetchSkinRarities ?? loadedConfig.showSkinRarities;
 
     // to see what these keys do, check here:
     // https://github.com/giorgi-o/SkinPeek/wiki/SkinPeek-Admin-Guide#the-option-list
@@ -98,6 +98,7 @@ export const loadConfig = (filename="config.json") => {
     applyConfig(loadedConfig, "rateLimitBackoff", 60);
     applyConfig(loadedConfig, "rateLimitCap", 10 * 60);
     applyConfig(loadedConfig, "useMultiqueue", false);
+    applyConfig(loadedConfig, "maxActiveProxies", 20);
     applyConfig(loadedConfig, "storePasswords", false);
     applyConfig(loadedConfig, "trackStoreStats", true);
     applyConfig(loadedConfig, "statsExpirationDays", 14);
@@ -157,10 +158,13 @@ export function resolvePublicUrl(req = null) {
 
     if (req && typeof req.get === "function") {
         const host = req.get("host");
-        if (host) {
-            const proto = req.get("x-forwarded-proto") || req.protocol || "http";
-            return `${proto}://${host}`;
+        // the host header is attacker-controlled and gets interpolated into the portal
+        // page, so only accept a strict hostname[:port] shape (IPv6 in brackets allowed)
+        const safeProto = req.get("x-forwarded-proto") === "https" || req.protocol === "https" ? "https" : "http";
+        if (host && /^[A-Za-z0-9.-]+(:[0-9]{1,5})?$|^\[[A-Fa-f0-9:]+\](:[0-9]{1,5})?$/.test(host)) {
+            return `${safeProto}://${host}`;
         }
+        if (host) console.warn(`[Config] Ignoring suspicious Host header: "${host}"`);
     }
 
     const portNum = Number.parseInt(process.env.PORT, 10);
